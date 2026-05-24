@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>216 Web安全色  | 点击复制HEX</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #f5f7fc;
+            font-family: 'Segoe UI', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
+            padding: 12px;
+            color: #1e2a3a;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+            overflow: hidden;
+            padding: 16px 12px 24px;
+        }
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 6px;
+            background: linear-gradient(135deg, #2c3e66, #1a2a44);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .sub {
+            text-align: center;
+            color: #5b6e8c;
+            margin-bottom: 18px;
+            font-size: 0.95rem;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+        .toolbar {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+        .toolbar button {
+            background: #edf2f7;
+            border: none;
+            padding: 5px 14px;
+            border-radius: 40px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: #2d3e5f;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .toolbar button:hover {
+            background: #cbd5e1;
+            transform: translateY(-1px);
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) scale(0.9);
+            background: #1e293b;
+            color: #f1f5f9;
+            padding: 6px 16px;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.2s;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: 0 6px 14px rgba(0,0,0,0.2);
+            backdrop-filter: blur(4px);
+            white-space: nowrap;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+        }
+        /* 竖屏3列核心样式 */
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        .color-card {
+            background: #ffffff;
+            border-radius: 12px;
+            border: 1px solid #eef2f9;
+            overflow: hidden;
+            transition: all 0.15s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+        .color-card:active {
+            transform: scale(0.98);
+        }
+        .color-preview {
+            height: 42px;
+            width: 100%;
+        }
+        .color-info {
+            padding: 5px 4px 8px;
+            text-align: center;
+        }
+        .hex-code {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-weight: 600;
+            font-size: 0.7rem;
+            background: #f1f5f9;
+            padding: 2px 4px;
+            border-radius: 16px;
+            cursor: pointer;
+            display: inline-block;
+            margin: 2px 0 2px;
+            transition: background 0.15s;
+            letter-spacing: 0.3px;
+            color: #0f172a;
+            word-break: keep-all;
+        }
+        .hex-code:hover {
+            background: #e2e8f0;
+            color: #0066cc;
+        }
+        .rgb-text {
+            font-size: 0.6rem;
+            color: #5e6f8d;
+            font-family: monospace;
+            line-height: 1.3;
+        }
+        .index-badge {
+            font-size: 0.55rem;
+            color: #8c9bb0;
+            margin-bottom: 2px;
+        }
+        footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.6rem;
+            color: #8da1bc;
+        }
+        /* 超小屏额外保护 */
+        @media (max-width: 420px) {
+            .color-grid {
+                gap: 6px;
+            }
+            .color-preview {
+                height: 38px;
+            }
+            .hex-code {
+                font-size: 0.65rem;
+                padding: 2px 3px;
+            }
+            .rgb-text {
+                font-size: 0.55rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🎨 216 Web 安全色</h1>
+    <div class="sub">点击十六进制复制颜色代码</div>
+    <div class="toolbar">
+        <button id="copyAllBtn">📋 复制全部HEX</button>
+    </div>
+    <div id="colorGrid" class="color-grid"></div>
+    <footer>完全符合 #00 #33 #66 #99 #CC #FF 规律 | 共216色</footer>
+</div>
+<div id="toastMsg" class="toast">✨ 已复制</div>
+
+<script>
+    // 生成 216 安全色 (6x6x6)
+    const steps = [0x00, 0x33, 0x66, 0x99, 0xCC, 0xFF];
+    const colors = [];
+    let index = 1;
+    for (let r of steps) {
+        for (let g of steps) {
+            for (let b of steps) {
+                const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`.toUpperCase();
+                const rgb = `${r},${g},${b}`;
+                colors.push({ idx: index++, hex, rgb });
+            }
+        }
+    }
+
+    const container = document.getElementById('colorGrid');
+    function render() {
+        container.innerHTML = '';
+        colors.forEach(c => {
+            const card = document.createElement('div');
+            card.className = 'color-card';
+            card.innerHTML = `
+                <div class="color-preview" style="background: ${c.hex};"></div>
+                <div class="color-info">
+                    <div class="index-badge">#${c.idx}</div>
+                    <div class="hex-code" data-clip="${c.hex}">${c.hex}</div>
+                    <div class="rgb-text">${c.rgb}</div>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    async function copyToClipboard(text, customMsg = null) {
+        try {
+            await navigator.clipboard.writeText(text);
+            const toast = document.getElementById('toastMsg');
+            toast.textContent = customMsg ? `✅ ${customMsg}` : `✅ 已复制: ${text}`;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 1300);
+            return true;
+        } catch (err) {
+            // fallback
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            const toast = document.getElementById('toastMsg');
+            toast.textContent = customMsg ? `📋 ${customMsg}` : `📋 已复制: ${text}`;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 1300);
+            return true;
+        }
+    }
+
+    container.addEventListener('click', (e) => {
+        const target = e.target.closest('.hex-code');
+        if (target) {
+            const hexValue = target.getAttribute('data-clip');
+            if (hexValue) {
+                copyToClipboard(hexValue);
+                e.stopPropagation();
+            }
+        }
+    });
+
+    document.getElementById('copyAllBtn').addEventListener('click', async () => {
+        const allHex = colors.map(c => c.hex).join(' ');
+        await copyToClipboard(allHex, '已复制全部216色 (空格分隔)');
+    });
+    render();
+</script>
+</body>
+</html>

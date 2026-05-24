@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>水果连连看</title>
+    <style>
+        * {
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(145deg, #1a472a 0%, #0e2a1a 100%);
+            font-family: system-ui, -apple-system, 'Microsoft YaHei', sans-serif;
+            overflow: hidden;
+        }
+        .game-container {
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            min-width: 320px;
+            min-height: 480px;
+        }
+        .game-panel {
+            flex: 1;
+            background: #fef5e8;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow: hidden;
+        }
+        .top-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #fff3e0;
+            padding: 10px 14px;
+            border-radius: 20px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .btn-row {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            background: #fff3e0;
+            padding: 10px 14px;
+            border-radius: 20px;
+            flex-wrap: wrap;
+        }
+        .stats {
+            display: flex;
+            gap: 14px;
+            background: #2d2b26;
+            padding: 8px 14px;
+            border-radius: 24px;
+            color: #ffefcf;
+            font-weight: bold;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.1rem;
+        }
+        .stat-label {
+            font-size: 1rem;
+            background: #1f1c18;
+            padding: 4px 10px;
+            border-radius: 16px;
+            color: #ffdd99;
+        }
+        .stat-value {
+            font-size: 1.6rem;
+            font-family: monospace;
+            min-width: 50px;
+            text-align: center;
+            color: #f7d44a;
+        }
+        .btn {
+            flex: 1;
+            min-width: 100px;
+            max-width: 160px;
+            background: #fff0da;
+            border: none;
+            font-size: 1.1rem;
+            font-weight: bold;
+            padding: 12px 16px;
+            border-radius: 22px;
+            color: #2c4a2e;
+            box-shadow: 0 2px 0 #b59a6b;
+            touch-action: manipulation;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background: #ffe8c0;
+        }
+        .btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 0 0 #b59a6b;
+        }
+        .btn-primary {
+            background: #ffcd7e;
+            color: #452b10;
+            box-shadow: 0 2px 0 #b46f2e;
+        }
+        .btn-primary:hover {
+            background: #ffb858;
+        }
+        .canvas-wrapper {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            max-width: 90vh;
+            max-height: 90vh;
+            margin: 0 auto;
+            padding: 2px;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            max-width: 600px;
+            max-height: 600px;
+            background: #faf0e1;
+            border-radius: 14px;
+            cursor: pointer;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+        }
+        .footer {
+            display: flex;
+            justify-content: center;
+            padding: 5px 0;
+        }
+        .message-area {
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+            background: #1f2a1b;
+            padding: 10px 24px;
+            border-radius: 24px;
+            color: #ffeaac;
+            max-width: 95%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        @media (min-width: 768px) {
+            .stat {
+                font-size: 1.2rem;
+            }
+            .stat-label {
+                font-size: 1.05rem;
+                padding: 5px 12px;
+            }
+            .stat-value {
+                font-size: 1.8rem;
+                min-width: 56px;
+            }
+            .btn {
+                font-size: 1.2rem;
+                padding: 14px 20px;
+                min-width: 120px;
+                max-width: 180px;
+            }
+            .message-area {
+                font-size: 1.2rem;
+                padding: 12px 28px;
+            }
+            canvas {
+                max-width: 650px;
+                max-height: 650px;
+            }
+        }
+        @media (max-width: 375px) {
+            .stats {
+                gap: 8px;
+            }
+            .stat-label {
+                font-size: 0.8rem;
+                padding: 3px 8px;
+            }
+            .stat-value {
+                font-size: 1.3rem;
+                min-width: 38px;
+            }
+            .btn {
+                min-width: 80px;
+                font-size: 0.9rem;
+                padding: 10px 12px;
+            }
+            .message-area {
+                font-size: 0.9rem;
+                padding: 8px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-panel">
+            <div class="top-row">
+                <div class="stats">
+                    <div class="stat">
+                        <span class="stat-label">⏱️ 剩余</span>
+                        <span class="stat-value" id="timerDisplay">00:00</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">🎯 得分</span>
+                        <span class="stat-value" id="scoreDisplay">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">🧩 剩余</span>
+                        <span class="stat-value" id="remainPairs">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn" id="shuffleBtn">🃏 洗牌</button>
+                <button class="btn btn-primary" id="hintBtn">💡 提示</button>
+                <button class="btn" id="resetBtn">🔄 新局</button>
+            </div>
+
+            <div class="canvas-wrapper">
+                <canvas id="gameCanvas"></canvas>
+            </div>
+
+            <div class="footer">
+                <div class="message-area" id="gameMsg">✨ 点击配对，直线/拐角消除 ✨</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const ROWS = 8;
+            const COLS = 8;
+            const ICON_SET = ["🍎", "🍊", "🍒", "🍓", "🥝", "🍉", "🍇", "🍏"];
+            const PAIR_COUNT_PER_TYPE = (ROWS * COLS) / ICON_SET.length;
+            const SCORE_PER_PAIR = 10;
+            const TIME_ADD_ON_MATCH = 1;
+            const TIME_MINUS_ON_WRONG = 5;
+            const SCORE_PER_REMAIN_SEC = 2;
+            let TIME_LIMIT = 90;
+
+            let grid = [];
+            let selectedRow = null,
+                selectedCol = null;
+            let hintRow1 = null,
+                hintCol1 = null,
+                hintRow2 = null,
+                hintCol2 = null;
+            let currentScore = 0,
+                remainingPairs = 0,
+                timeLeft = TIME_LIMIT;
+            let timerInterval = null,
+                gameActive = true,
+                gameWinFlag = false;
+
+            const canvas = document.getElementById('gameCanvas');
+            let ctx = canvas.getContext('2d');
+            const timerDisplay = document.getElementById('timerDisplay');
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            const remainPairsSpan = document.getElementById('remainPairs');
+            const gameMsgDiv = document.getElementById('gameMsg');
+
+            // 严格锁定画布尺寸，只在初始化时计算一次
+            let canvasLogicSize = 400;
+            let canvasDpr = window.devicePixelRatio || 1;
+            let isInitialized = false;
+
+            // 音效
+            let audioCtx = null;
+
+            function initAudio() {
+                if (!audioCtx) audioCtx = new(window.AudioContext || window.webkitAudioContext)();
+            }
+
+            function playSfx(type) {
+                try {
+                    initAudio();
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.connect(g);
+                    g.connect(audioCtx.destination);
+                    let freq, dur, vol;
+                    switch (type) {
+                        case 'click':
+                            freq = 880;
+                            dur = 0.08;
+                            vol = 0.12;
+                            o.type = 'sine';
+                            break;
+                        case 'match':
+                            freq = 1180;
+                            dur = 0.15;
+                            vol = 0.18;
+                            o.type = 'sine';
+                            break;
+                        case 'button':
+                            freq = 720;
+                            dur = 0.07;
+                            vol = 0.1;
+                            o.type = 'sine';
+                            break;
+                        case 'win':
+                            freq = 990;
+                            dur = 0.3;
+                            vol = 0.25;
+                            o.type = 'sine';
+                            o.frequency.setValueAtTime(990, audioCtx.currentTime + 0.1);
+                            o.frequency.setValueAtTime(1320, audioCtx.currentTime + 0.2);
+                            break;
+                        case 'lose':
+                            freq = 380;
+                            dur = 0.4;
+                            vol = 0.25;
+                            o.type = 'triangle';
+                            break;
+                        case 'wrong':
+                            freq = 320;
+                            dur = 0.2;
+                            vol = 0.2;
+                            o.type = 'triangle';
+                            break;
+                        default:
+                            freq = 440;
+                            dur = 0.1;
+                            vol = 0.1;
+                            o.type = 'sine';
+                    }
+                    o.frequency.value = freq;
+                    g.gain.value = vol;
+                    g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
+                    o.start();
+                    o.stop(audioCtx.currentTime + dur);
+                    if (navigator.vibrate) navigator.vibrate(type === 'win' ? [20, 30, 20] : (type === 'wrong' ? 30 :
+                        10));
+                } catch (e) {}
+            }
+
+            function unlockAudio() {
+                initAudio();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                document.removeEventListener('touchstart', unlockAudio);
+                document.removeEventListener('click', unlockAudio);
+            }
+            document.addEventListener('touchstart', unlockAudio);
+            document.addEventListener('click', unlockAudio);
+
+            function formatTime(s) {
+                const m = Math.floor(s / 60);
+                return `${m.toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
+            }
+
+            function updateUI() {
+                scoreDisplay.textContent = currentScore;
+                remainPairsSpan.textContent = remainingPairs;
+                timerDisplay.textContent = formatTime(timeLeft);
+            }
+
+            function calcRemainingPairs() {
+                let cnt = 0;
+                for (let i = 0; i < ROWS; i++)
+                    for (let j = 0; j < COLS; j++)
+                        if (grid[i][j] !== null) cnt++;
+                return cnt / 2;
+            }
+
+            function updateRemainingAndWin() {
+                remainingPairs = calcRemainingPairs();
+                updateUI();
+                if (remainingPairs === 0 && gameActive && !gameWinFlag) gameWin();
+            }
+
+            function gameWin() {
+                if (gameWinFlag) return;
+                gameWinFlag = true;
+                gameActive = false;
+                clearInterval(timerInterval);
+                timerInterval = null;
+                let timeBonus = timeLeft * SCORE_PER_REMAIN_SEC;
+                currentScore += timeBonus;
+                updateUI();
+                playSfx('win');
+                gameMsgDiv.textContent = `🎉 通关！时间加分 +${timeBonus} 总分${currentScore}`;
+                drawGrid();
+            }
+
+            function gameLose() {
+                if (!gameActive) return;
+                gameActive = false;
+                gameWinFlag = false;
+                clearInterval(timerInterval);
+                timerInterval = null;
+                playSfx('lose');
+                gameMsgDiv.textContent = '⏰ 时间到！';
+                drawGrid();
+            }
+
+            function startTimer() {
+                clearInterval(timerInterval);
+                timerInterval = setInterval(() => {
+                    if (!gameActive) return;
+                    if (timeLeft <= 1) { timeLeft = 0;
+                        updateUI();
+                        gameLose(); } else { timeLeft--;
+                        updateUI(); }
+                }, 1000);
+            }
+
+            function isHorizontalClear(r, c1, c2) {
+                const min = Math.min(c1, c2),
+                    max = Math.max(c1, c2);
+                for (let c = min + 1; c < max; c++)
+                    if (grid[r][c] !== null) return false;
+                return true;
+            }
+
+            function isVerticalClear(c, r1, r2) {
+                const min = Math.min(r1, r2),
+                    max = Math.max(r1, r2);
+                for (let r = min + 1; r < max; r++)
+                    if (grid[r][c] !== null) return false;
+                return true;
+            }
+
+            function canConnectDirect(r1, c1, r2, c2) {
+                return r1 === r2 ? isHorizontalClear(r1, c1, c2) : (c1 === c2 ? isVerticalClear(c1, r1, r2) : false);
+            }
+
+            function canConnectOneCorner(r1, c1, r2, c2) {
+                if (grid[r1][c2] === null && isHorizontalClear(r1, c1, c2) && isVerticalClear(c2, r1, r2)) return true;
+                if (grid[r2][c1] === null && isVerticalClear(c1, r1, r2) && isHorizontalClear(r2, c1, c2)) return true;
+                return false;
+            }
+
+            function canConnectTwoCorner(r1, c1, r2, c2) {
+                for (let i = 0; i < ROWS; i++) {
+                    if (i !== r1 && i !== r2 && grid[i][c1] === null && grid[i][c2] === null) {
+                        if (isVerticalClear(c1, r1, i) && isHorizontalClear(i, c1, c2) && isVerticalClear(c2, i, r2))
+                            return true;
+                    }
+                }
+                for (let j = 0; j < COLS; j++) {
+                    if (j !== c1 && j !== c2 && grid[r1][j] === null && grid[r2][j] === null) {
+                        if (isHorizontalClear(r1, c1, j) && isVerticalClear(j, r1, r2) && isHorizontalClear(r2, j, c2))
+                            return true;
+                    }
+                }
+                return false;
+            }
+
+            function canConnect(r1, c1, r2, c2) {
+                if (r1 === r2 && c1 === c2) return false;
+                if (grid[r1][c1] === null || grid[r2][c2] === null) return false;
+                if (grid[r1][c1] !== grid[r2][c2]) return false;
+                return canConnectDirect(r1, c1, r2, c2) || canConnectOneCorner(r1, c1, r2, c2) || canConnectTwoCorner(r1,
+                    c1, r2, c2);
+            }
+
+            function existsAnyConnect() {
+                for (let i = 0; i < ROWS; i++)
+                    for (let j = 0; j < COLS; j++) {
+                        if (grid[i][j] === null) continue;
+                        for (let m = 0; m < ROWS; m++)
+                            for (let n = 0; n < COLS; n++) {
+                                if (i === m && j === n) continue;
+                                if (grid[m][n] !== null && canConnect(i, j, m, n)) return true;
+                            }
+                    }
+                return false;
+            }
+
+            function shuffleRemainingOnly() {
+                const list = [];
+                for (let i = 0; i < ROWS; i++)
+                    for (let j = 0; j < COLS; j++)
+                        if (grid[i][j] !== null) list.push(grid[i][j]);
+                for (let i = list.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [list[i], list[j]] = [list[j], list[i]];
+                }
+                let idx = 0;
+                for (let i = 0; i < ROWS; i++)
+                    for (let j = 0; j < COLS; j++)
+                        if (grid[i][j] !== null) grid[i][j] = list[idx++];
+                clearSelectedAndHint();
+            }
+
+            function ensureSolvable(att = 5) {
+                for (let i = 0; i < att; i++)
+                    if (existsAnyConnect()) return true;
+                    else shuffleRemainingOnly();
+                return existsAnyConnect();
+            }
+
+            function shuffleGrid() {
+                if (!gameActive) { gameMsgDiv.textContent = '游戏已结束'; return; }
+                playSfx('button');
+                shuffleRemainingOnly();
+                ensureSolvable(3);
+                drawGrid();
+                gameMsgDiv.textContent = '🃏 已洗牌';
+                setTimeout(() => gameActive && (gameMsgDiv.textContent = '✨ 点击配对消除'), 1200);
+            }
+
+            function clearSelectedAndHint() {
+                selectedRow = selectedCol = hintRow1 = hintCol1 = hintRow2 = hintCol2 = null;
+            }
+
+            function eliminatePair(r1, c1, r2, c2) {
+                if (!canConnect(r1, c1, r2, c2)) return false;
+                grid[r1][c1] = grid[r2][c2] = null;
+                currentScore += SCORE_PER_PAIR;
+                timeLeft = Math.min(timeLeft + TIME_ADD_ON_MATCH, 999);
+                playSfx('match');
+                updateRemainingAndWin();
+                clearSelectedAndHint();
+                drawGrid();
+                if (remainingPairs > 0 && !existsAnyConnect() && gameActive) {
+                    gameMsgDiv.textContent = '⚠️ 无可用连接，自动洗牌';
+                    shuffleRemainingOnly();
+                    ensureSolvable(3);
+                    drawGrid();
+                    setTimeout(() => gameActive && (gameMsgDiv.textContent = '✨ 点击配对消除'), 1500);
+                } else {
+                    gameMsgDiv.textContent = `✔️ +${SCORE_PER_PAIR}分 +${TIME_ADD_ON_MATCH}秒`;
+                    setTimeout(() => gameActive && remainingPairs > 0 && (gameMsgDiv.textContent = '✨ 点击配对消除'), 800);
+                }
+                return true;
+            }
+
+            function giveHint() {
+                if (!gameActive) { gameMsgDiv.textContent = '游戏未开始'; return; }
+                if (remainingPairs === 0) { gameMsgDiv.textContent = '🎉 已通关'; return; }
+                playSfx('button');
+                for (let i = 0; i < ROWS; i++)
+                    for (let j = 0; j < COLS; j++) {
+                        if (grid[i][j] === null) continue;
+                        for (let m = 0; m < ROWS; m++)
+                            for (let n = 0; n < COLS; n++) {
+                                if (i === m && j === n) continue;
+                                if (grid[m][n] !== null && canConnect(i, j, m, n)) {
+                                    hintRow1 = i;
+                                    hintCol1 = j;
+                                    hintRow2 = m;
+                                    hintCol2 = n;
+                                    drawGrid();
+                                    gameMsgDiv.textContent = `💡 可消除`;
+                                    setTimeout(() => { hintRow1 = hintCol1 = hintRow2 = hintCol2 = null;
+                                        drawGrid();
+                                        gameActive && (gameMsgDiv.textContent = '✨ 点击配对消除'); }, 2600);
+                                    return;
+                                }
+                            }
+                    }
+                gameMsgDiv.textContent = '⚠️ 无可消除，请洗牌';
+            }
+
+            function initCanvasSize() {
+                if (isInitialized) return; // 已经初始化过，不再重复计算
+                
+                const wrapper = document.querySelector('.canvas-wrapper');
+                const wrapperWidth = wrapper.clientWidth;
+                const wrapperHeight = wrapper.clientHeight;
+                const size = Math.min(wrapperWidth, wrapperHeight);
+                
+                canvasLogicSize = size;
+                canvasDpr = window.devicePixelRatio || 1;
+
+                // 一次性设置画布物理像素尺寸
+                canvas.width = size * canvasDpr;
+                canvas.height = size * canvasDpr;
+                canvas.style.width = `${size}px`;
+                canvas.style.height = `${size}px`;
+
+                // 完全重置上下文
+                ctx = canvas.getContext('2d');
+                ctx.setTransform(canvasDpr, 0, 0, canvasDpr, 0, 0);
+                
+                isInitialized = true;
+            }
+
+            function drawGrid() {
+                if (!ctx) return;
+                const w = canvasLogicSize;
+                const cell = w / COLS;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const x = c * cell;
+                        const y = r * cell;
+                        const v = grid[r][c];
+
+                        ctx.beginPath();
+                        ctx.rect(x + 1, y + 1, cell - 2, cell - 2);
+                        ctx.fillStyle = v === null ? '#e8dcc8' : '#fff8ee';
+                        ctx.fill();
+                        ctx.strokeStyle = '#dcc8a0';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+
+                        if (v === null) {
+                            ctx.fillStyle = 'rgba(0,0,0,0.04)';
+                            ctx.beginPath();
+                            const margin = cell * 0.15;
+                            ctx.roundRect(x + margin, y + margin, cell - margin * 2, cell - margin * 2, cell * 0.25);
+                            ctx.fill();
+                        }
+
+                        if (v !== null) {
+                            const fontSize = cell * 0.65;
+                            ctx.font = `${fontSize}px system-ui,-apple-system,'Microsoft YaHei',sans-serif`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillStyle = 'rgba(0,0,0,0.08)';
+                            ctx.fillText(v, x + cell / 2 + 1, y + cell / 2 + 1);
+                            ctx.fillStyle = '#3a2410';
+                            ctx.fillText(v, x + cell / 2, y + cell / 2);
+                        }
+
+                        if (selectedRow === r && selectedCol === c && v !== null) {
+                            ctx.strokeStyle = '#f7b32b';
+                            ctx.lineWidth = 4;
+                            ctx.beginPath();
+                            ctx.roundRect(x + 2, y + 2, cell - 4, cell - 4, 8);
+                            ctx.stroke();
+                            ctx.strokeStyle = 'rgba(247,179,43,0.4)';
+                            ctx.lineWidth = 6;
+                            ctx.beginPath();
+                            ctx.roundRect(x + 1, y + 1, cell - 2, cell - 2, 10);
+                            ctx.stroke();
+                        }
+
+                        if ((hintRow1 === r && hintCol1 === c) || (hintRow2 === r && hintCol2 === c)) {
+                            ctx.strokeStyle = '#ff6644';
+                            ctx.lineWidth = 3;
+                            ctx.setLineDash([4, 3]);
+                            ctx.beginPath();
+                            ctx.roundRect(x + 3, y + 3, cell - 6, cell - 6, 8);
+                            ctx.stroke();
+                            ctx.setLineDash([]);
+                        }
+                    }
+                }
+
+                if (!gameActive) {
+                    const overlayWidth = w * 0.82;
+                    const overlayHeight = w * 0.38;
+                    const overlayX = (w - overlayWidth) / 2;
+                    const overlayY = (w - overlayHeight) / 2;
+
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+                    ctx.fillRect(0, 0, w, w);
+
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                    ctx.shadowBlur = 20;
+                    ctx.shadowOffsetX = 0;
+                    ctx.shadowOffsetY = 6;
+
+                    ctx.beginPath();
+                    ctx.roundRect(overlayX, overlayY, overlayWidth, overlayHeight, 22);
+                    ctx.fillStyle = 'rgba(30, 30, 38, 0.96)';
+                    ctx.fill();
+
+                    ctx.strokeStyle = '#f7b32b';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+
+                    ctx.shadowColor = 'transparent';
+                    ctx.shadowBlur = 0;
+
+                    const titleFontSize = w / 11;
+                    ctx.font = `bold ${titleFontSize}px system-ui,-apple-family,'Microsoft YaHei',sans-serif`;
+                    ctx.fillStyle = '#ffecb3';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(gameWinFlag ? '✨ 胜利 ✨' : '⏰ 时间到！', w / 2, overlayY + overlayHeight * 0.4);
+
+                    const subFontSize = w / 24;
+                    ctx.font = `500 ${subFontSize}px system-ui`;
+                    ctx.fillStyle = '#bbb';
+                    ctx.fillText('点击「新局」按钮重新开始', w / 2, overlayY + overlayHeight * 0.68);
+                }
+            }
+
+            function handleTap(e) {
+                e.preventDefault();
+                if (!gameActive || remainingPairs === 0) return;
+
+                const rect = canvas.getBoundingClientRect();
+                let clientX, clientY;
+                if (e.touches) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
+
+                const scaleX = (canvasLogicSize * canvasDpr) / rect.width;
+                const scaleY = (canvasLogicSize * canvasDpr) / rect.height;
+                const x = (clientX - rect.left) * scaleX / canvasDpr;
+                const y = (clientY - rect.top) * scaleY / canvasDpr;
+
+                const c = Math.floor(x / (canvasLogicSize / COLS));
+                const r = Math.floor(y / (canvasLogicSize / ROWS));
+
+                if (r < 0 || r >= ROWS || c < 0 || c >= COLS || grid[r][c] === null) return;
+
+                if (selectedRow !== null && selectedCol !== null) {
+                    if (selectedRow === r && selectedCol === c) {
+                        clearSelectedAndHint();
+                        drawGrid();
+                        return;
+                    }
+                    if (canConnect(selectedRow, selectedCol, r, c)) {
+                        eliminatePair(selectedRow, selectedCol, r, c);
+                    } else {
+                        timeLeft = Math.max(0, timeLeft - TIME_MINUS_ON_WRONG);
+                        updateUI();
+                        playSfx('wrong');
+                        selectedRow = r;
+                        selectedCol = c;
+                        gameMsgDiv.textContent = `❌ 错误 -${TIME_MINUS_ON_WRONG}秒`;
+                        setTimeout(() => gameActive && (gameMsgDiv.textContent = '✨ 点击配对消除'), 1000);
+                        if (timeLeft <= 0) gameLose();
+                    }
+                } else {
+                    selectedRow = r;
+                    selectedCol = c;
+                    playSfx('click');
+                    gameMsgDiv.textContent = `🔸 已选中`;
+                }
+                drawGrid();
+            }
+
+            function resetGame() {
+                clearInterval(timerInterval);
+                gameActive = true;
+                gameWinFlag = false;
+                timeLeft = TIME_LIMIT;
+                currentScore = 0;
+                clearSelectedAndHint();
+
+                const pool = [];
+                ICON_SET.forEach(ic => { for (let k = 0; k < PAIR_COUNT_PER_TYPE; k++) pool.push(ic); });
+                for (let i = pool.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [pool[i], pool[j]] = [pool[j], pool[i]];
+                }
+                grid = Array(ROWS).fill().map(() => Array(COLS).fill(null));
+                let idx = 0;
+                for (let i = 0; i < ROWS; i++)
+                    for (let j = 0; j < COLS; j++)
+                        grid[i][j] = pool[idx++];
+
+                remainingPairs = calcRemainingPairs();
+                updateUI();
+                if (!existsAnyConnect()) shuffleRemainingOnly();
+                
+                // 关键修复：不再调用resizeAndRedraw，直接重绘即可
+                drawGrid();
+                
+                startTimer();
+                playSfx('button');
+                gameMsgDiv.textContent = '✨ 新局开始';
+            }
+
+            canvas.addEventListener('touchstart', e => { e.preventDefault();
+                handleTap(e); });
+            canvas.addEventListener('click', handleTap);
+
+            document.querySelectorAll('.btn').forEach(btn => {
+                btn.addEventListener('mouseenter', () => {
+                    btn.style.background = btn.classList.contains('btn-primary') ? '#ffb858' :
+                    '#ffe8c0';
+                });
+                btn.addEventListener('mouseleave', () => {
+                    btn.style.background = btn.classList.contains('btn-primary') ? '#ffcd7e' :
+                    '#fff0da';
+                });
+            });
+            document.getElementById('shuffleBtn').onclick = shuffleGrid;
+            document.getElementById('hintBtn').onclick = giveHint;
+            document.getElementById('resetBtn').onclick = resetGame;
+
+            // 窗口大小改变时才重新计算画布尺寸
+            window.addEventListener('resize', () => {
+                isInitialized = false; // 允许重新计算
+                initCanvasSize();
+                drawGrid();
+            });
+            
+            // 首次加载时初始化
+            window.addEventListener('load', () => {
+                initCanvasSize();
+                resetGame();
+            });
+        })();
+    </script>
+</body>
+</html>

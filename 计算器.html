@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>计算器</title>
+    <style>
+        :root {
+            --bg: #f0f2f5;
+            --calc-bg: #ffffff;
+            --display-bg: #f8f9fa;
+            --display-text: #1a1a2e;
+            --preview-text: #8e8e93;
+            --operator-red: #e34d4d;
+            --btn-number: #ffffff;
+            --btn-number-hover: #e9ecef;
+            --btn-number-text: #1a1a2e;
+            --btn-operator: #4a6cf7;
+            --btn-operator-hover: #3b5de7;
+            --btn-operator-text: #ffffff;
+            --btn-func: #e9ecef;
+            --btn-func-hover: #dde1e7;
+            --btn-func-text: #495057;
+            --btn-equals: #f97316;
+            --btn-equals-hover: #ea580c;
+            --btn-equals-text: #ffffff;
+            --btn-memory-bg: #f1f3f5;
+            --btn-memory-hover: #e3e7eb;
+            --btn-memory-text: #495057;
+            --btn-ac-bg: #fee2e2;
+            --btn-ac-hover: #fecaca;
+            --btn-ac-text: #dc2626;
+            --shadow: 0 10px 40px rgba(0, 0, 0, 0.10);
+            --border-radius: 20px;
+            --btn-radius: 14px;
+            --transition: 0.15s ease;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #e8ecf1 0%, #d5dce6 30%, #e2e7ef 60%, #dce3eb 100%);
+            font-family: 'SF Pro Display', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            padding: 20px;
+        }
+
+        body::before {
+            content: ''; position: fixed; top: -120px; right: -100px;
+            width: 400px; height: 400px;
+            background: radial-gradient(circle, rgba(74,108,247,0.08) 0%, transparent 70%);
+            border-radius: 50%; pointer-events: none; z-index: 0;
+        }
+        body::after {
+            content: ''; position: fixed; bottom: -100px; left: -80px;
+            width: 350px; height: 350px;
+            background: radial-gradient(circle, rgba(249,115,22,0.07) 0%, transparent 70%);
+            border-radius: 50%; pointer-events: none; z-index: 0;
+        }
+
+        .calculator {
+            position: relative; z-index: 1;
+            background: var(--calc-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow), 0 0 0 1px rgba(0,0,0,0.04);
+            padding: 24px; width: 340px;
+            display: flex; flex-direction: column; gap: 18px;
+            transition: transform 0.2s ease;
+        }
+
+        .display {
+            background: var(--display-bg);
+            border-radius: 14px;
+            padding: 18px 18px 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            justify-content: flex-end;
+            min-height: 115px;
+            word-break: break-all;
+            overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.04);
+            position: relative;
+            transition: all 0.1s ease;
+        }
+
+        .memory-indicator {
+            position: absolute; top: 10px; left: 16px;
+            font-size: 13px; font-weight: 700; color: #4a6cf7;
+            opacity: 0; transition: opacity 0.2s; letter-spacing: 0.5px;
+            pointer-events: none;
+        }
+        .memory-indicator.active { opacity: 1; }
+
+        /* 算式行 (第一行) - 默认大于结果行 */
+        .display .expression {
+            font-size: 28px;
+            font-weight: 550;
+            color: #1a1a2e;
+            line-height: 1.3;
+            text-align: right;
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
+            scrollbar-width: thin;
+            letter-spacing: 0.3px;
+            transition: all 0.15s ease;
+        }
+        .display .expression::-webkit-scrollbar {
+            height: 2px;
+        }
+
+        /* 结果预览行 (第二行) - 默认小于算式行，灰色 */
+        .display .result {
+            font-size: 28px;
+            font-weight: 450;
+            color: var(--preview-text);
+            line-height: 1.3;
+            text-align: right;
+            width: 100%;
+            overflow-x: auto;
+            white-space: nowrap;
+            transition: all 0.15s ease;
+            letter-spacing: -0.2px;
+        }
+
+        /* 等号后整体模式：第二行(结果)变得巨大且醒目，第一行适当缩小 */
+        .display.equal-mode .expression {
+            font-size: 38px;
+            font-weight: 480;
+            color: #5e5e66;
+        }
+        .display.equal-mode .result {
+            font-size: 44px;
+            font-weight: 700;
+            color: var(--display-text);
+            letter-spacing: -0.8px;
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 400px) {
+            .calculator { width: 100%; padding: 16px; gap: 14px; border-radius: 16px; }
+            .display { padding: 14px 12px 10px; min-height: 100px; border-radius: 12px; }
+            .display .expression { font-size: 24px; }
+            .display .result { font-size: 18px; }
+            .display.equal-mode .expression { font-size: 16px; }
+            .display.equal-mode .result { font-size: 38px; }
+        }
+
+        .buttons {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+        }
+
+        button {
+            font-family: inherit; font-size: 18px; font-weight: 500;
+            border: none; border-radius: var(--btn-radius);
+            cursor: pointer; height: 56px;
+            transition: all var(--transition); outline: none;
+            position: relative; overflow: hidden; letter-spacing: 0.3px;
+        }
+
+        button::after {
+            content: ''; position: absolute; inset: 0;
+            background: radial-gradient(circle at center, rgba(255,255,255,0.3) 0%, transparent 70%);
+            opacity: 0; transition: opacity 0.3s; pointer-events: none;
+            border-radius: var(--btn-radius);
+        }
+        button:active::after { opacity: 1; transition: opacity 0s; }
+
+        .btn-number {
+            background: var(--btn-number); color: var(--btn-number-text);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04);
+        }
+        .btn-number:hover { background: var(--btn-number-hover); transform: translateY(-1px); }
+        .btn-number:active { background: #dde1e7; transform: scale(0.96); }
+
+        .btn-func {
+            background: var(--btn-func); color: var(--btn-func-text);
+            font-weight: 600; font-size: 16px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        }
+        .btn-func:hover { background: var(--btn-func-hover); transform: translateY(-1px); }
+        .btn-func:active { background: #ced4da; transform: scale(0.96); }
+
+        .btn-ac {
+            background: var(--btn-ac-bg); color: var(--btn-ac-text);
+            font-weight: 700; box-shadow: 0 2px 6px rgba(220,38,38,0.08);
+        }
+        .btn-ac:hover { background: var(--btn-ac-hover); }
+        .btn-ac:active { background: #fecaca; }
+
+        .btn-memory {
+            background: var(--btn-memory-bg); color: var(--btn-memory-text);
+            font-weight: 600; font-size: 14px; height: 42px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.03); letter-spacing: 0.4px;
+        }
+        .btn-memory:hover { background: var(--btn-memory-hover); transform: translateY(-1px); }
+        .btn-memory:active { background: #d5d9df; }
+
+        .btn-operator {
+            background: var(--btn-operator); color: var(--btn-operator-text);
+            font-weight: 600; font-size: 20px;
+            box-shadow: 0 3px 10px rgba(74,108,247,0.25);
+        }
+        .btn-operator:hover { background: var(--btn-operator-hover); }
+        .btn-operator:active { background: #2f4de0; }
+        .btn-operator.active-op {
+            background: #2f4de0;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.2), 0 0 0 3px rgba(74,108,247,0.25);
+            animation: pulse-op 0.6s ease;
+        }
+        @keyframes pulse-op {
+            0%,100% { box-shadow: inset 0 2px 6px rgba(0,0,0,0.2), 0 0 0 3px rgba(74,108,247,0.25); }
+            50% { box-shadow: inset 0 2px 6px rgba(0,0,0,0.2), 0 0 0 8px rgba(74,108,247,0.05); }
+        }
+
+        .btn-equals {
+            background: var(--btn-equals); color: var(--btn-equals-text);
+            font-weight: 700; font-size: 22px;
+            box-shadow: 0 4px 14px rgba(249,115,22,0.35);
+        }
+        .btn-equals:hover { background: var(--btn-equals-hover); }
+        .btn-equals:active { background: #c2410c; }
+
+        .hint {
+            text-align: center; font-size: 11px; color: #adb5bd;
+            margin-top: -4px; letter-spacing: 0.5px;
+        }
+        .hint span { color: #868e96; font-weight: 500; }
+
+        @media (max-width: 400px) {
+            .buttons { gap: 7px; }
+            button { height: 48px; font-size: 16px; border-radius: 12px; }
+            .btn-memory { height: 38px; font-size: 13px; }
+            .btn-operator { font-size: 18px; }
+            .btn-equals { font-size: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator" role="application" aria-label="vivo风格计算器 运算符红 动态字号">
+        <div class="display" id="displayContainer">
+            <span class="memory-indicator" id="memoryIndicator">M</span>
+            <div class="expression" id="expression"></div>
+            <div class="result" id="result">0</div>
+        </div>
+
+        <div class="buttons">
+            <button class="btn-memory" data-action="mc">mc</button>
+            <button class="btn-memory" data-action="mplus">m+</button>
+            <button class="btn-memory" data-action="mminus">m-</button>
+            <button class="btn-memory" data-action="mr">mr</button>
+
+            <button class="btn-func btn-ac" data-action="all-clear">AC</button>
+            <button class="btn-func" data-action="backspace">⌫</button>
+            <button class="btn-func" data-action="negate">±</button>
+            <button class="btn-operator" data-action="operator" data-value="/">÷</button>
+
+            <button class="btn-number" data-action="number" data-value="7">7</button>
+            <button class="btn-number" data-action="number" data-value="8">8</button>
+            <button class="btn-number" data-action="number" data-value="9">9</button>
+            <button class="btn-operator" data-action="operator" data-value="*">×</button>
+
+            <button class="btn-number" data-action="number" data-value="4">4</button>
+            <button class="btn-number" data-action="number" data-value="5">5</button>
+            <button class="btn-number" data-action="number" data-value="6">6</button>
+            <button class="btn-operator" data-action="operator" data-value="-">−</button>
+
+            <button class="btn-number" data-action="number" data-value="1">1</button>
+            <button class="btn-number" data-action="number" data-value="2">2</button>
+            <button class="btn-number" data-action="number" data-value="3">3</button>
+            <button class="btn-operator" data-action="operator" data-value="+">+</button>
+
+            <button class="btn-func" data-action="percent">%</button>
+            <button class="btn-number" data-action="number" data-value="0">0</button>
+            <button class="btn-number" data-action="decimal" data-value=".">.</button>
+            <button class="btn-equals" data-action="equals">=</button>
+        </div>
+        <div class="hint">键盘操作 · <span>Enter</span> 计算 · <span>Backspace</span> 退格 · 运算符红色 · 字号动态</div>
+    </div>
+
+    <script>
+        (function() {
+            // DOM 元素
+            const displayContainer = document.getElementById('displayContainer');
+            const expressionEl = document.getElementById('expression');
+            const resultEl = document.getElementById('result');
+            const memoryIndicator = document.getElementById('memoryIndicator');
+
+            // 核心状态
+            let expressionStr = "0";          // 原始算式字符串 (内部存储，运算符为 + - × ÷)
+            let lastEvaluatedValue = "0";     // 实时预览结果
+            let isEqualMode = false;           // 是否处于等号后状态
+            let lastComputedResult = "0";      // 上次等号结果
+            let lastOperatorForRepeat = null;   // 连续运算用的运算符
+            let lastSecondOperand = null;       // 连续运算右操作数
+
+            let memory = 0;
+
+            // 更新记忆指示灯
+            function updateMemoryIndicator() {
+                memoryIndicator.classList.toggle('active', memory !== 0);
+            }
+
+            // 将算式中的运算符替换为红色 (支持 + - × ÷)
+            function colorizeOperators(expr) {
+                if (!expr) return "";
+                // 使用正则匹配运算符 (+, -, ×, ÷) 且独立位置，不匹配数字中的负号(负数已经在逻辑中完整, 这里仅渲染颜色不影响实际)
+                // 为了防止负数开头的负号被染红？实际上应该只染运算符，位于数字/括号/表达式之间的符号。更简单: 将 + - × ÷ 各自替换为带红span的版本
+                // 注意: 负数标识符 '-' 可能在开头或运算符后，但为了视觉一致性，我们只把明确的二元运算符染色，而数字开头的负号不作为红色(保持黑色)
+                // 更好的: 匹配所有 + - × ÷ 字符，但排除数字后的负号？ 复杂。简单些: 将每个运算符前后如果相邻数字/空格，染红不影响阅读。
+                let colored = expr.replace(/([+\-×÷])/g, (match, op, offset) => {
+                    // 对于负号情况: 如果负号前面是空(开头)或者前面是运算符，且负号后面跟着数字 —— 这种是负号，不染红保持黑色样式。
+                    // 为了更符合用户直觉：只把加减乘除作为二元运算符染成红色，而表示负数的负号保留黑色。
+                    if (op === '-') {
+                        // 判断是否负数符号: 在开头 或者 前一个字符是运算符或开头且后面是数字
+                        const prevChar = offset > 0 ? expr[offset - 1] : null;
+                        const nextChar = offset + 1 < expr.length ? expr[offset + 1] : null;
+                        if ((offset === 0 || (prevChar && /[+\-×÷]/.test(prevChar))) && nextChar && /[0-9]/.test(nextChar)) {
+                            return match; // 负数符号保持原色
+                        }
+                    }
+                    return `<span style="color: var(--operator-red, #e34d4d); font-weight: 550;">${op}</span>`;
+                });
+                return colored;
+            }
+
+            // 刷新整个显示 (根据 isEqualMode 和 expressionStr)
+            function refreshUI() {
+                // 更新第一行: 带红色运算符
+                let displayExpr = expressionStr === "" ? "0" : expressionStr;
+                const coloredHtml = colorizeOperators(displayExpr);
+                expressionEl.innerHTML = coloredHtml;
+                // 自动滚动到最右
+                expressionEl.scrollLeft = expressionEl.scrollWidth;
+
+                // 第二行的文本
+                if (isEqualMode) {
+                    resultEl.textContent = lastComputedResult;
+                } else {
+                    resultEl.textContent = lastEvaluatedValue;
+                }
+                resultEl.scrollLeft = resultEl.scrollWidth;
+
+                // 根据是否为等号模式添加/移除类，控制字号大小 (第一行缩、第二行放)
+                if (isEqualMode) {
+                    displayContainer.classList.add('equal-mode');
+                } else {
+                    displayContainer.classList.remove('equal-mode');
+                }
+            }
+
+            // 安全求值函数 (返回字符串结果)
+            function evaluateExpression(expr) {
+                let jsExpr = expr.replace(/×/g, '*').replace(/÷/g, '/');
+                if (!jsExpr.trim()) return "0";
+                let trimmedExpr = jsExpr.trim();
+                const lastChar = trimmedExpr[trimmedExpr.length - 1];
+                if (['+', '-', '*', '/'].includes(lastChar)) {
+                    trimmedExpr = trimmedExpr.slice(0, -1);
+                }
+                if (trimmedExpr === "") return "0";
+                try {
+                    if (/[+\-*/]{2,}/.test(trimmedExpr)) return "Error";
+                    const result = Function('"use strict"; return (' + trimmedExpr + ')')();
+                    if (typeof result !== 'number' || isNaN(result) || !isFinite(result)) return "Error";
+                    let rounded = parseFloat(result.toPrecision(12));
+                    let str = rounded.toString();
+                    if (str.length > 18) str = rounded.toExponential(8);
+                    return str;
+                } catch (e) {
+                    return "Error";
+                }
+            }
+
+            // 更新预览值 (根据当前表达式)
+            function updatePreview() {
+                if (isEqualMode) return;
+                if (expressionStr === "" || expressionStr === "Error") {
+                    lastEvaluatedValue = "0";
+                } else {
+                    const evalRes = evaluateExpression(expressionStr);
+                    if (evalRes === "Error") {
+                        lastEvaluatedValue = "错误";
+                    } else {
+                        lastEvaluatedValue = evalRes;
+                    }
+                }
+                refreshUI();
+            }
+
+            // 完全重置
+            function allClear() {
+                expressionStr = "0";
+                isEqualMode = false;
+                lastComputedResult = "0";
+                lastOperatorForRepeat = null;
+                lastSecondOperand = null;
+                lastEvaluatedValue = "0";
+                updatePreview();
+                // 清除运算符高亮
+                document.querySelectorAll('.btn-operator').forEach(btn => btn.classList.remove('active-op'));
+            }
+
+            // 退格
+            function backspace() {
+                if (isEqualMode) {
+                    allClear();
+                    return;
+                }
+                if (expressionStr === "0" || expressionStr === "Error" || expressionStr.length === 1) {
+                    expressionStr = "0";
+                } else {
+                    expressionStr = expressionStr.slice(0, -1);
+                    if (expressionStr === "" || expressionStr === "-" || /[+\-×÷]$/.test(expressionStr) && expressionStr.length === 1) {
+                        expressionStr = "0";
+                    }
+                }
+                updatePreview();
+            }
+
+            // 数字输入
+            function inputNumber(num) {
+                if (isEqualMode) {
+                    expressionStr = num;
+                    isEqualMode = false;
+                    lastOperatorForRepeat = null;
+                    lastSecondOperand = null;
+                    updatePreview();
+                    return;
+                }
+                if (expressionStr === "0" || expressionStr === "Error") {
+                    expressionStr = num;
+                } else {
+                    expressionStr += num;
+                }
+                updatePreview();
+            }
+
+            // 小数点
+            function inputDecimal() {
+                if (isEqualMode) {
+                    expressionStr = "0.";
+                    isEqualMode = false;
+                    lastOperatorForRepeat = null;
+                    lastSecondOperand = null;
+                    updatePreview();
+                    return;
+                }
+                let parts = expressionStr.split(/[+\-×÷]/);
+                let lastNum = parts[parts.length - 1];
+                if (lastNum.includes('.')) return;
+                expressionStr += ".";
+                updatePreview();
+            }
+
+            // 正负号
+            function toggleNegate() {
+                if (isEqualMode) {
+                    let val = parseFloat(lastComputedResult);
+                    if (isNaN(val)) val = 0;
+                    let newVal = (-val).toString();
+                    expressionStr = newVal;
+                    isEqualMode = false;
+                    lastOperatorForRepeat = null;
+                    lastSecondOperand = null;
+                    updatePreview();
+                    return;
+                }
+                let match = expressionStr.match(/([+\-×÷]?)([^+\-×÷]+)$/);
+                if (match) {
+                    let prefix = match[1] || '';
+                    let operand = match[2];
+                    let newOperand;
+                    if (operand.startsWith('-')) {
+                        newOperand = operand.slice(1);
+                    } else {
+                        newOperand = '-' + operand;
+                    }
+                    expressionStr = expressionStr.slice(0, expressionStr.length - operand.length) + prefix + newOperand;
+                } else {
+                    let num = parseFloat(expressionStr);
+                    if (!isNaN(num)) expressionStr = (-num).toString();
+                }
+                if (expressionStr === "") expressionStr = "0";
+                updatePreview();
+            }
+
+            // 百分比
+            function inputPercent() {
+                if (isEqualMode) {
+                    let val = parseFloat(lastComputedResult);
+                    if (isNaN(val)) val = 0;
+                    let percentVal = val / 100;
+                    expressionStr = percentVal.toString();
+                    isEqualMode = false;
+                    lastOperatorForRepeat = null;
+                    lastSecondOperand = null;
+                    updatePreview();
+                    return;
+                }
+                let match = expressionStr.match(/([+\-×÷]?)([^+\-×÷]+)$/);
+                if (match) {
+                    let prefix = match[1] || '';
+                    let operand = match[2];
+                    let num = parseFloat(operand);
+                    if (!isNaN(num)) {
+                        let percentNum = num / 100;
+                        expressionStr = expressionStr.slice(0, expressionStr.length - operand.length) + prefix + percentNum.toString();
+                    }
+                } else {
+                    let num = parseFloat(expressionStr);
+                    if (!isNaN(num)) expressionStr = (num / 100).toString();
+                }
+                if (expressionStr === "") expressionStr = "0";
+                updatePreview();
+            }
+
+            // 运算符处理
+            function handleOperator(op) {
+                const displayOp = op === '*' ? '×' : (op === '/' ? '÷' : op);
+                if (isEqualMode) {
+                    expressionStr = lastComputedResult + displayOp;
+                    isEqualMode = false;
+                    lastOperatorForRepeat = op;
+                    updatePreview();
+                    highlightOperator(op);
+                    return;
+                }
+                let lastChar = expressionStr.slice(-1);
+                if (['+', '-', '×', '÷'].includes(lastChar)) {
+                    expressionStr = expressionStr.slice(0, -1) + displayOp;
+                } else {
+                    expressionStr += displayOp;
+                }
+                if (expressionStr.length === 1 && ['+', '-', '×', '÷'].includes(expressionStr)) {
+                    expressionStr = "0" + expressionStr;
+                }
+                updatePreview();
+                highlightOperator(op);
+            }
+
+            function highlightOperator(currentOp) {
+                document.querySelectorAll('.btn-operator').forEach(btn => {
+                    btn.classList.remove('active-op');
+                    let btnVal = btn.getAttribute('data-value');
+                    if (btnVal === currentOp) {
+                        btn.classList.add('active-op');
+                    }
+                });
+            }
+
+            // 等号逻辑 (连续运算支持)
+            function performEquals() {
+                if (isEqualMode && lastOperatorForRepeat && lastSecondOperand !== null) {
+                    const left = parseFloat(lastComputedResult);
+                    const right = parseFloat(lastSecondOperand);
+                    if (isNaN(left) || isNaN(right)) {
+                        allClear();
+                        return;
+                    }
+                    let newResultRaw;
+                    switch (lastOperatorForRepeat) {
+                        case '+': newResultRaw = left + right; break;
+                        case '-': newResultRaw = left - right; break;
+                        case '*': newResultRaw = left * right; break;
+                        case '/': newResultRaw = right !== 0 ? left / right : 'Error'; break;
+                        default: newResultRaw = left;
+                    }
+                    if (newResultRaw === 'Error' || isNaN(newResultRaw) || !isFinite(newResultRaw)) {
+                        expressionStr = "错误";
+                        lastEvaluatedValue = "错误";
+                        isEqualMode = false;
+                        refreshUI();
+                        return;
+                    }
+                    let resultStr = parseFloat(newResultRaw.toPrecision(12)).toString();
+                    if (resultStr.length > 18) resultStr = parseFloat(newResultRaw).toExponential(8);
+                    lastComputedResult = resultStr;
+                    expressionStr = lastComputedResult + " " + (lastOperatorForRepeat === '*' ? '×' : (lastOperatorForRepeat === '/' ? '÷' : lastOperatorForRepeat)) + " " + lastSecondOperand;
+                    isEqualMode = true;
+                    refreshUI();
+                    return;
+                }
+
+                // 普通模式等号
+                if (expressionStr === "" || expressionStr === "Error") {
+                    allClear();
+                    return;
+                }
+                let cleanForEval = expressionStr;
+                let lastChar = cleanForEval.slice(-1);
+                if (['+', '-', '×', '÷'].includes(lastChar)) {
+                    cleanForEval = cleanForEval.slice(0, -1);
+                }
+                if (cleanForEval === "") {
+                    allClear();
+                    return;
+                }
+                const evalResult = evaluateExpression(cleanForEval);
+                if (evalResult === "Error") {
+                    expressionStr = "Error";
+                    lastEvaluatedValue = "Error";
+                    isEqualMode = false;
+                    refreshUI();
+                    return;
+                }
+                lastComputedResult = evalResult;
+                // 提取重复运算信息
+                let opMatch = expressionStr.match(/([+\-×÷])([^+\-×÷]+)$/);
+                if (opMatch && !isEqualMode) {
+                    let rawOp = opMatch[1];
+                    let rightOperand = opMatch[2];
+                    if (rawOp === '×') lastOperatorForRepeat = '*';
+                    else if (rawOp === '÷') lastOperatorForRepeat = '/';
+                    else lastOperatorForRepeat = rawOp;
+                    lastSecondOperand = rightOperand;
+                } else {
+                    lastOperatorForRepeat = null;
+                    lastSecondOperand = null;
+                }
+                isEqualMode = true;
+                refreshUI();
+                highlightOperator(null);
+            }
+
+            // 记忆功能
+            function memoryClear() { memory = 0; updateMemoryIndicator(); }
+            function memoryAdd() {
+                let val;
+                if (isEqualMode) val = parseFloat(lastComputedResult);
+                else val = parseFloat(lastEvaluatedValue);
+                if (!isNaN(val) && lastEvaluatedValue !== "错误") memory += val;
+                updateMemoryIndicator();
+            }
+            function memorySubtract() {
+                let val;
+                if (isEqualMode) val = parseFloat(lastComputedResult);
+                else val = parseFloat(lastEvaluatedValue);
+                if (!isNaN(val) && lastEvaluatedValue !== "错误") memory -= val;
+                updateMemoryIndicator();
+            }
+            function memoryRecall() {
+                let memStr = parseFloat(memory.toPrecision(12)).toString();
+                if (isEqualMode) {
+                    expressionStr = memStr;
+                    isEqualMode = false;
+                    lastOperatorForRepeat = null;
+                    lastSecondOperand = null;
+                    updatePreview();
+                } else {
+                    if (expressionStr === "0" || expressionStr === "Error") {
+                        expressionStr = memStr;
+                    } else {
+                        expressionStr += memStr;
+                    }
+                    updatePreview();
+                }
+            }
+
+            // 绑定按钮
+            const allButtons = document.querySelectorAll('button');
+            allButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const action = btn.getAttribute('data-action');
+                    const value = btn.getAttribute('data-value');
+                    btn.style.transform = 'scale(0.94)';
+                    setTimeout(() => btn.style.transform = '', 100);
+
+                    switch (action) {
+                        case 'number': inputNumber(value); break;
+                        case 'decimal': inputDecimal(); break;
+                        case 'operator': handleOperator(value); break;
+                        case 'equals': performEquals(); break;
+                        case 'all-clear': allClear(); break;
+                        case 'backspace': backspace(); break;
+                        case 'negate': toggleNegate(); break;
+                        case 'percent': inputPercent(); break;
+                        case 'mc': memoryClear(); break;
+                        case 'mplus': memoryAdd(); break;
+                        case 'mminus': memorySubtract(); break;
+                        case 'mr': memoryRecall(); break;
+                    }
+                });
+            });
+
+            // 键盘监听
+            document.addEventListener('keydown', (e) => {
+                const key = e.key;
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                const numKeys = ['0','1','2','3','4','5','6','7','8','9'];
+                if (numKeys.includes(key)) { e.preventDefault(); inputNumber(key); }
+                else if (key === '.') { e.preventDefault(); inputDecimal(); }
+                else if (key === '+') { e.preventDefault(); handleOperator('+'); }
+                else if (key === '-') { e.preventDefault(); handleOperator('-'); }
+                else if (key === '*') { e.preventDefault(); handleOperator('*'); }
+                else if (key === '/') { e.preventDefault(); handleOperator('/'); }
+                else if (key === 'Enter' || key === '=') { e.preventDefault(); performEquals(); }
+                else if (key === 'Escape') { e.preventDefault(); allClear(); }
+                else if (key === 'Backspace') { e.preventDefault(); backspace(); }
+                else if (key === '%') { e.preventDefault(); inputPercent(); }
+            });
+
+            // 初始化
+            allClear();
+            updateMemoryIndicator();
+        })();
+    </script>
+</body>
+</html>

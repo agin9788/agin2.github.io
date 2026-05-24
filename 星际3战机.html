@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>星际三战机 · 烈日弹幕</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; touch-action:none; }
+        body {
+            background: #1a1f2e;
+            min-height:100vh;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+            padding:8px;
+            overflow:hidden;
+        }
+        .game-wrapper {
+            position:relative;
+            background:#0a0f1a;
+            border-radius:32px;
+            padding:12px;
+            box-shadow:0 0 40px rgba(0,0,0,0.6), 0 0 0 2px rgba(255,215,0,0.4);
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            gap:8px;
+            max-width:440px;
+            width:100%;
+        }
+        canvas {
+            display:block;
+            border-radius:20px;
+            cursor:none;
+            width:100%;
+            height:auto;
+            aspect-ratio:400/650;
+            max-width:400px;
+            box-shadow:0 0 30px rgba(0,0,0,0.5), inset 0 0 0 2px rgba(255,215,0,0.3);
+        }
+        .hud {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            width: 100%;
+            font-weight: 800;
+            font-size: 0.7rem;
+            padding: 0 2px;
+        }
+        .hud-item {
+            background: rgba(10,20,35,0.85);
+            backdrop-filter: blur(6px);
+            padding: 5px 4px;
+            border-radius: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            border: 1px solid rgba(255,215,0,0.7);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            white-space: nowrap;
+            overflow-x: auto;
+            font-size: 0.7rem;
+            color: #f5f9ff;
+            text-shadow: 0 1px 2px black;
+        }
+        .hud-item span {
+            font-weight: 900;
+            font-size: 0.75rem;
+            text-shadow: 0 0 3px #ffaa33;
+            color: #ffcc55;
+            margin-left: 2px;
+            white-space: nowrap;
+        }
+        .hud-item.combo span { color: #ff8888; text-shadow: 0 0 3px red; }
+        .hud-item.lives span { color: #ffaa99; }
+        .btn-sound {
+            background: linear-gradient(135deg,#3a5a7a,#2a4a6a);
+            border: none;
+            padding: 0 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            border-radius: 28px;
+            color: white;
+            font-weight: bold;
+            height: 100%;
+            width: 100%;
+        }
+        .btn-sound:active { transform: translateY(1px); }
+        .hud-item button {
+            background: transparent;
+            box-shadow: none;
+            margin: 0;
+            padding: 0;
+            font-size: 0.8rem;
+        }
+        .overlay {
+            position:absolute;
+            top:0; left:0; right:0; bottom:0;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            border-radius:24px;
+            z-index:100;
+            pointer-events:none;
+            opacity:0;
+            transition:opacity 0.3s ease;
+        }
+        .overlay.active { pointer-events:auto; opacity:1; }
+        .overlay-bg {
+            position:absolute;
+            inset:0;
+            border-radius:24px;
+            background:rgba(200,225,250,0.92);
+            backdrop-filter:blur(12px);
+        }
+        .overlay-content {
+            position:relative;
+            z-index:2;
+            text-align:center;
+            padding:20px;
+        }
+        .game-title {
+            font-size:2.2rem;
+            font-weight:900;
+            background:linear-gradient(135deg,#ff7e3a,#ffb347,#ff4444);
+            -webkit-background-clip:text;
+            background-clip:text;
+            color:transparent;
+            filter:drop-shadow(0 0 8px #ffaa66);
+        }
+        .btn-primary {
+            background:linear-gradient(135deg,#ffa135,#e9641e);
+            font-size:1rem;
+            padding:10px 32px;
+            box-shadow:0 6px 0 #884b1a;
+            border: none;
+            border-radius: 40px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-help {
+            background:#2b5d8c;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 40px;
+            color: white;
+            font-weight: bold;
+            margin-top: 12px;
+            cursor: pointer;
+        }
+        .help-modal {
+            position:absolute;
+            inset:0;
+            z-index:200;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            pointer-events:none;
+            opacity:0;
+            transition:0.2s;
+        }
+        .help-modal.active { pointer-events:auto; opacity:1; }
+        .help-card {
+            background:rgba(250,245,215,0.97);
+            backdrop-filter:blur(14px);
+            border-radius:36px;
+            width:80%;
+            max-width:320px;
+            padding:20px;
+            border:2px solid #ffb347;
+            box-shadow:0 20px 30px rgba(0,0,0,0.2);
+            color:#1f2e3c;
+        }
+        .help-card h3 { text-align:center; font-size:1.5rem; margin-bottom:12px; color:#d45a1a; }
+        .close-help { background:#f59e42; margin-top:16px; text-align:center; padding:8px; border-radius:60px; font-weight:bold; cursor:pointer; color:white; }
+        @media (max-width: 420px) {
+            .hud-item { padding: 4px 2px; font-size: 0.65rem; }
+            .hud-item span { font-size: 0.7rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="overlay active" id="overlayStart">
+    <div class="overlay-bg"></div>
+    <div class="overlay-content">
+        <div class="game-title">☀️ 星际三战机 · 烈日射线 ☀️</div>
+        <div class="game-subtitle" style="color:#2c3e5c; margin:8px 0;">红黑弹幕 · 强光远征</div>
+        <button class="btn-primary" id="btnStart">🚀 升空出击</button>
+        <button class="btn-help" id="btnHelp">📘 机师手册</button>
+    </div>
+</div>
+<div id="helpModal" class="help-modal">
+    <div class="help-card">
+        <h3>🛸 作战指令</h3>
+        <p>🎮 移动：鼠标/手指拖拽 或 WASD / 方向键</p>
+        <p>🔫 射击：红黑三连发 + 空格键手动开火</p>
+        <p>✨ 道具：🛡️护盾(无敌) 💣核爆清屏(敌机+敌方子弹全灭) ⭐+100分</p>
+        <p>📡 远征距离：击败敌机积累距离 → 攒满后遭遇BOSS → 必须击败BOSS才能进入下一关！</p>
+        <p>⚡ 敌机也会向下射击，灵活闪避！<br>💀 游戏结束后，点击画面即可重启</p>
+        <p>🌞 太阳光线强力照射效果 + 自定义背景(1.jpg)</p>
+        <div class="close-help" id="closeHelpBtn">✈ 明白，出击！</div>
+    </div>
+</div>
+<div class="game-wrapper">
+    <div class="hud">
+        <div class="hud-item">⭐ <span id="scoreDisplay">0</span></div>
+        <div class="hud-item">📡 远征 <span id="distanceDisplay">0</span></div>
+        <div class="hud-item combo">🔥 连击 <span id="comboDisplay">0</span></div>
+        <div class="hud-item lives">💖 生命 <span id="livesDisplay">3</span></div>
+        <div class="hud-item">🎯 第 <span id="levelDisplay">1</span> 关</div>
+        <div class="hud-item"><button class="btn-sound" id="soundBtn">🔊</button></div>
+    </div>
+    <canvas id="gameCanvas" width="400" height="650"></canvas>
+</div>
+
+<script>
+(function(){
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const W = 400, H = 650;
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const distanceDisplay = document.getElementById('distanceDisplay');
+    const comboDisplay = document.getElementById('comboDisplay');
+    const livesDisplay = document.getElementById('livesDisplay');
+    const levelDisplay = document.getElementById('levelDisplay');
+    const soundBtn = document.getElementById('soundBtn');
+    const overlayStart = document.getElementById('overlayStart');
+    const btnStart = document.getElementById('btnStart');
+    const btnHelp = document.getElementById('btnHelp');
+    const helpModal = document.getElementById('helpModal');
+    const closeHelpBtn = document.getElementById('closeHelpBtn');
+
+    // ======================= 自定义背景加载 (1.jpg) =======================
+    let customBackgroundImg = null;
+    let customBgReady = false;
+    function loadCustomBackground() {
+        const img = new Image();
+        img.onload = () => {
+            customBackgroundImg = img;
+            customBgReady = true;
+            console.log("自定义背景1.jpg加载成功，阳光射线将叠加");
+        };
+        img.onerror = () => {
+            customBgReady = false;
+            console.log("未找到1.jpg，使用默认天空+强光背景");
+        };
+        img.src = "1.jpg";
+    }
+    loadCustomBackground();
+    
+    // 游戏状态
+    let gameStarted = false, gameOver = false;
+    let score = 0;
+    let level = 1, lives = 3, invincibleTimer = 0;
+    let combo = 0, comboTimer = 0;
+    let screenShake = 0, frameCount = 0, lastShootFrame = 0;
+    let travelDistance = 0, distanceToBoss = 1200;   // 远征加长
+    let bossActive = false, bossDefeatedForLevel = false;
+    
+    const PLAYER_W = 32, PLAYER_H = 40;
+    let player = { x: W/2, y: H-70, w: PLAYER_W, h: PLAYER_H, speed: 6.5, shieldAlpha:0, shieldPulse:0 };
+    let bullets = [], enemies = [], particles = [], floatingTexts = [], powerUps = [];
+    let autoShootTimer = 0, shootInterval = 12;
+    let enemySpawnTimer = 0, enemySpawnBase = 46;
+    
+    function safeScore(value) { let num = Number(value); return isNaN(num) ? 0 : num; }
+    function addScore(delta) { let add = safeScore(delta); score = safeScore(score) + add; if (score < 0) score = 0; }
+    
+    // 图片透明处理 (战机/敌人)
+    function makeImageTransparent(img, rT=255, gT=255, bT=255, tol=45) {
+        if(!img || !img.width) return null;
+        let tCanvas = document.createElement('canvas');
+        tCanvas.width = img.width; tCanvas.height = img.height;
+        let tCtx = tCanvas.getContext('2d');
+        tCtx.drawImage(img,0,0);
+        let data = tCtx.getImageData(0,0,img.width,img.height);
+        let pix = data.data;
+        for(let i=0;i<pix.length;i+=4){
+            let dr = pix[i]-rT, dg = pix[i+1]-gT, db = pix[i+2]-bT;
+            if(Math.hypot(dr,dg,db) <= tol) pix[i+3]=0;
+        }
+        tCtx.putImageData(data,0,0);
+        return tCanvas;
+    }
+    let playerSprite = null, playerImgReady=false;
+    let bossSprite = null, bossImgReady=false;
+    const playerImg = new Image(); playerImg.src = "0.png";
+    const bossImg = new Image(); bossImg.src = "1.png";
+    let enemySprites = new Map();
+    const enemyTypes = ['basic','fast','tough','zigzag','heavy'];
+    const enemyFiles = ['2.png','3.png','4.png','5.png','6.png'];
+    function loadAllSprites(){
+        playerImg.onload = ()=>{ let p=makeImageTransparent(playerImg); if(p) playerSprite=p; playerImgReady=!!p; };
+        playerImg.onerror = ()=>{ playerImgReady=false; };
+        bossImg.onload = ()=>{ let b=makeImageTransparent(bossImg); if(b) bossSprite=b; bossImgReady=!!b; };
+        bossImg.onerror = ()=>{ bossImgReady=false; };
+        enemyTypes.forEach((type,idx)=>{
+            let img = new Image();
+            img.src = enemyFiles[idx];
+            let status = { ready:false, sprite:null };
+            enemySprites.set(type,status);
+            img.onload = ()=>{
+                let trans = makeImageTransparent(img);
+                if(trans){ status.sprite=trans; status.ready=true; }
+                else status.ready=false;
+            };
+            img.onerror = ()=> status.ready=false;
+        });
+    }
+    loadAllSprites();
+    function getEnemySprite(type){ let s = enemySprites.get(type); return (s && s.ready && s.sprite) ? s.sprite : null; }
+    
+    // ========== 增强太阳光线照射效果 (光晕+放射状光柱) ==========
+    let clouds = [];
+    let sunGlowAngle = 0;
+    let sunPulse = 0;
+    
+    function initClouds() {
+        clouds = [];
+        let cloudCount = 6 + Math.floor(Math.random() * 3);
+        for(let i=0; i<cloudCount; i++){
+            let parts = [];
+            let baseX = Math.random() * W;
+            let baseY = 30 + Math.random() * (H * 0.55);
+            let cloudW = 40 + Math.random() * 55;
+            let coreR = cloudW * 0.45;
+            let partCount = 2 + Math.floor(Math.random() * 3);
+            for(let p=0; p<partCount; p++){
+                let offX = (Math.random() - 0.5) * cloudW * 0.8;
+                let offY = (Math.random() - 0.5) * (cloudW * 0.3);
+                let radius = coreR * (0.6 + Math.random() * 0.7);
+                parts.push({ dx: offX, dy: offY, r: radius });
+            }
+            clouds.push({
+                x: baseX,
+                y: baseY,
+                speed: 0.2 + Math.random() * 0.5,
+                parts: parts,
+                baseY: baseY,
+                wobble: Math.random() * Math.PI * 2
+            });
+        }
+    }
+    
+    function updateClouds() {
+        for(let c of clouds) {
+            c.x += c.speed;
+            if(c.x > W + 100) { c.x = -100; c.y = 30 + Math.random() * (H * 0.55); c.baseY = c.y; }
+            else if(c.x < -120) { c.x = W + 80; c.y = 30 + Math.random() * (H * 0.55); c.baseY = c.y; }
+            c.wobble += 0.008;
+            c.y = c.baseY + Math.sin(c.wobble) * 3;
+        }
+    }
+    
+    // 核心强光照射函数: 放射状光线 + 高亮光晕 + 光柱感
+    function drawSunRaysAndGlow() {
+        let sunX = W - 35, sunY = 55;
+        sunGlowAngle += 0.01;   // 光线缓慢旋转
+        sunPulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.002);
+        
+        // 1. 超大范围光晕 (多层)
+        for(let i=5; i>0; i--) {
+            let radius = 38 + i * 14;
+            let alpha = 0.09 * (1 - i/6) * (0.7 + 0.5 * Math.sin(Date.now() * 0.004));
+            ctx.beginPath();
+            ctx.arc(sunX, sunY, radius, 0, Math.PI*2);
+            let grd = ctx.createRadialGradient(sunX, sunY, radius-12, sunX, sunY, radius);
+            grd.addColorStop(0, `rgba(255, 210, 100, ${alpha*1.8})`);
+            grd.addColorStop(1, `rgba(255, 100, 40, 0)`);
+            ctx.fillStyle = grd;
+            ctx.fill();
+        }
+        
+        // 2. 强力放射光线 (22条动态光柱，半透明渐隐)
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for(let i = 0; i < 22; i++) {
+            let angle = i * Math.PI * 2 / 22 + sunGlowAngle;
+            let lengthVar = 58 + 12 * Math.sin(angle * 3 + Date.now() * 0.008);
+            let startX = sunX + Math.cos(angle) * 18;
+            let startY = sunY + Math.sin(angle) * 18;
+            let endX = sunX + Math.cos(angle) * lengthVar;
+            let endY = sunY + Math.sin(angle) * lengthVar;
+            // 光线渐变
+            let grad = ctx.createLinearGradient(startX, startY, endX, endY);
+            grad.addColorStop(0, `rgba(255, 220, 120, 0.9)`);
+            grad.addColorStop(0.6, `rgba(255, 160, 60, 0.5)`);
+            grad.addColorStop(1, `rgba(255, 100, 30, 0)`);
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(endX, endY);
+            ctx.lineWidth = 9 + 3 * Math.sin(angle * 4 + Date.now() * 0.01);
+            ctx.strokeStyle = grad;
+            ctx.stroke();
+        }
+        // 3. 更强的主光柱 (4条较宽的主射线)
+        for(let i = 0; i < 8; i++) {
+            let angle = i * Math.PI * 2 / 8 + sunGlowAngle * 0.6;
+            let lengthWide = 72;
+            let startX = sunX + Math.cos(angle) * 12;
+            let startY = sunY + Math.sin(angle) * 12;
+            let endX = sunX + Math.cos(angle) * lengthWide;
+            let endY = sunY + Math.sin(angle) * lengthWide;
+            let grad = ctx.createLinearGradient(startX, startY, endX, endY);
+            grad.addColorStop(0, `rgba(255, 200, 80, 0.8)`);
+            grad.addColorStop(1, `rgba(255, 80, 20, 0)`);
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(endX, endY);
+            ctx.lineWidth = 14;
+            ctx.strokeStyle = grad;
+            ctx.stroke();
+        }
+        ctx.globalCompositeOperation = 'source-over';
+        
+        // 4. 太阳核心炽热层
+        ctx.beginPath();
+        ctx.arc(sunX, sunY, 24, 0, Math.PI*2);
+        let coreGrd = ctx.createRadialGradient(sunX-4, sunY-4, 5, sunX, sunY, 28);
+        coreGrd.addColorStop(0, '#fff9e0');
+        coreGrd.addColorStop(0.4, '#ffd966');
+        coreGrd.addColorStop(1, '#ff8833');
+        ctx.fillStyle = coreGrd;
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(sunX-2, sunY-2, 10, 0, Math.PI*2);
+        ctx.fillStyle = '#fffaac';
+        ctx.fill();
+        
+        // 5. 额外高光闪烁
+        ctx.beginPath();
+        ctx.arc(sunX-3, sunY-3, 5, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(255, 255, 210, 0.9)`;
+        ctx.fill();
+        ctx.restore();
+    }
+    
+    // 云朵绘制 (半透明)
+    function drawClouds() {
+        for(let c of clouds) {
+            ctx.save();
+            ctx.shadowBlur = 4;
+            ctx.shadowColor = "rgba(0,0,0,0.05)";
+            for(let part of c.parts) {
+                ctx.beginPath();
+                ctx.arc(c.x + part.dx, c.y + part.dy, part.r, 0, Math.PI*2);
+                ctx.fillStyle = 'rgba(255, 255, 248, 0.88)';
+                ctx.fill();
+                ctx.fillStyle = 'rgba(255, 250, 225, 0.96)';
+                ctx.beginPath();
+                ctx.arc(c.x + part.dx - 2, c.y + part.dy - 2, part.r * 0.6, 0, Math.PI*2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+    }
+    
+    // 统一背景绘图: 自定义图片 或 默认天空，并叠加太阳射线、云朵
+    function drawFullBackground() {
+        if (customBgReady && customBackgroundImg) {
+            ctx.drawImage(customBackgroundImg, 0, 0, W, H);
+        } else {
+            // 默认明媚天空
+            let grad = ctx.createLinearGradient(0, 0, 0, H);
+            grad.addColorStop(0, '#7ccff7');
+            grad.addColorStop(0.4, '#b8e2ff');
+            grad.addColorStop(1, '#fff0cf');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, W, H);
+        }
+        // 绘制云朵 (让背景更有层次)
+        drawClouds();
+        // 核心: 强光射线效果 (在背景之上，战机之下)
+        drawSunRaysAndGlow();
+        
+        // 飘浮光尘 (加强日照感)
+        for(let i=0;i<55;i++) {
+            let x = (i * 311) % W;
+            let y = (frameCount * 0.15 + i * 173) % H;
+            ctx.beginPath();
+            ctx.arc(x, y, 1.2, 0, Math.PI*2);
+            ctx.fillStyle = `rgba(255, 220, 120, ${0.35+Math.sin(frameCount*0.02+i)*0.2})`;
+            ctx.fill();
+        }
+    }
+    
+    // ========== 红黑风格子弹 ==========
+    function drawBullets() {
+        for(let b of bullets) {
+            if(b.isEnemy) {
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, 5, 0, Math.PI*2);
+                let grad = ctx.createRadialGradient(b.x-1, b.y-1, 2, b.x, b.y, 6);
+                grad.addColorStop(0, '#cc2222');
+                grad.addColorStop(1, '#2a0000');
+                ctx.fillStyle = grad;
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, 2.5, 0, Math.PI*2);
+                ctx.fillStyle = '#7a0000';
+                ctx.fill();
+            } else {
+                ctx.fillStyle = '#b52e2e';
+                ctx.fillRect(b.x-3, b.y, 6, b.h);
+                ctx.fillStyle = '#3a0000';
+                ctx.fillRect(b.x-2, b.y+2, 4, b.h-4);
+                ctx.fillStyle = '#cc4444';
+                ctx.fillRect(b.x-1.5, b.y+1, 3, b.h-2);
+                ctx.strokeStyle = '#1a0000';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(b.x-3, b.y, 6, b.h);
+            }
+        }
+    }
+    
+    // 绘图辅助 (玩家/敌人)
+    function drawDetailedPlayer(x,y,w,h, shieldActive){
+        ctx.save();
+        ctx.shadowBlur = 4;
+        ctx.shadowColor = "#ff8844";
+        ctx.translate(x,y);
+        let grad = ctx.createLinearGradient(-w*0.3, -h*0.4, w*0.4, h*0.5);
+        grad.addColorStop(0, '#ffc48c');
+        grad.addColorStop(0.4, '#dc5e1a');
+        grad.addColorStop(1, '#8a2a0a');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(0, -h*0.48);
+        ctx.quadraticCurveTo(-w*0.35, -h*0.05, -w*0.55, h*0.25);
+        ctx.lineTo(-w*0.3, h*0.4);
+        ctx.lineTo(0, h*0.52);
+        ctx.lineTo(w*0.3, h*0.4);
+        ctx.lineTo(w*0.55, h*0.25);
+        ctx.quadraticCurveTo(w*0.35, -h*0.05, 0, -h*0.48);
+        ctx.fill();
+        ctx.fillStyle = "#ff8844";
+        ctx.beginPath();
+        ctx.moveTo(-w*0.48, h*0.18);
+        ctx.lineTo(-w*0.72, h*0.42);
+        ctx.lineTo(-w*0.45, h*0.48);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(w*0.48, h*0.18);
+        ctx.lineTo(w*0.72, h*0.42);
+        ctx.lineTo(w*0.45, h*0.48);
+        ctx.fill();
+        if(shieldActive || invincibleTimer>0){
+            ctx.globalAlpha = 0.55 + Math.sin(Date.now()*0.012)*0.2;
+            ctx.beginPath();
+            ctx.ellipse(0,0, w*0.8, h*0.7, 0, 0, Math.PI*2);
+            ctx.fillStyle = '#ffaa88';
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
+        ctx.restore();
+    }
+    
+    function drawBossDetailed(x,y,w,h, hpPercent){
+        ctx.save();
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = "#d44";
+        ctx.translate(x,y);
+        let grad = ctx.createLinearGradient(-w*0.5, -h*0.4, w*0.6, h*0.6);
+        grad.addColorStop(0, '#dc4c3e');
+        grad.addColorStop(0.5, '#b42c2c');
+        grad.addColorStop(1, '#5a1a1a');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, w*0.55, h*0.58, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = "#ffbf77";
+        ctx.lineWidth = 2.5;
+        for(let i=-1;i<=1;i++){
+            ctx.beginPath();
+            ctx.moveTo(i*w*0.3, -h*0.3);
+            ctx.lineTo(i*w*0.45, h*0.25);
+            ctx.stroke();
+        }
+        ctx.fillStyle = "#6a4e3e";
+        ctx.beginPath();
+        ctx.ellipse(-w*0.35, h*0.1, 10, 15, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(w*0.35, h*0.1, 10, 15, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = "#ffaa66";
+        ctx.beginPath();
+        ctx.ellipse(-w*0.35, h*0.1, 4, 8, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(w*0.35, h*0.1, 4, 8, 0, 0, Math.PI*2);
+        ctx.fill();
+        let glow = 0.6+0.4*Math.sin(Date.now()*0.01);
+        ctx.fillStyle = `rgba(255, 100, 30, ${0.8+glow*0.2})`;
+        ctx.beginPath();
+        ctx.ellipse(0, -h*0.05, w*0.24, h*0.26, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#ffdd88';
+        ctx.beginPath();
+        ctx.arc(0, -h*0.05, w*0.12, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#220000';
+        ctx.fillRect(-w*0.55, -h*0.68, w*1.1, 7);
+        ctx.fillStyle = '#ff5a5a';
+        ctx.fillRect(-w*0.55, -h*0.68, w*1.1*hpPercent, 7);
+        ctx.restore();
+    }
+    
+    function drawEnemyDetailed(e){
+        let x=e.x, y=e.y, w=e.w, h=e.h;
+        let sprite = getEnemySprite(e.type);
+        if(sprite){
+            ctx.drawImage(sprite, x-w/2, y-h/2, w, h);
+            if(e.maxHp>1 && e.hp<e.maxHp){
+                ctx.fillStyle = '#222';
+                ctx.fillRect(x-w/2, y-h/2-8, w, 4);
+                ctx.fillStyle = '#0f0';
+                ctx.fillRect(x-w/2, y-h/2-8, w*(e.hp/e.maxHp), 4);
+            }
+            return;
+        }
+        ctx.save();
+        ctx.shadowBlur = 3;
+        ctx.shadowColor = e.glowColor;
+        ctx.translate(x,y);
+        let grad = ctx.createLinearGradient(-w*0.3, -h*0.2, w*0.3, h*0.6);
+        grad.addColorStop(0, e.color);
+        grad.addColorStop(1, '#2a0a1a');
+        ctx.fillStyle = grad;
+        if(e.type === 'fast'){
+            ctx.beginPath();
+            ctx.moveTo(0, -h*0.45);
+            ctx.lineTo(-w*0.55, h*0.3);
+            ctx.lineTo(-w*0.2, h*0.1);
+            ctx.lineTo(0, h*0.4);
+            ctx.lineTo(w*0.2, h*0.1);
+            ctx.lineTo(w*0.55, h*0.3);
+            ctx.closePath();
+            ctx.fill();
+        } else if(e.type === 'tough'){
+            ctx.beginPath();
+            ctx.ellipse(0,0, w*0.48, h*0.48, 0, 0, Math.PI*2);
+            ctx.fill();
+        } else if(e.type === 'zigzag'){
+            for(let i=-1;i<=1;i++){
+                ctx.fillStyle = `#ffaa66`;
+                ctx.beginPath();
+                ctx.ellipse(i*w*0.3, -h*0.1, 7, 10, 0, 0, Math.PI*2);
+                ctx.fill();
+            }
+            ctx.fillStyle = '#dd8844';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, w*0.4, h*0.4,0,0,Math.PI*2);
+            ctx.fill();
+        } else if(e.type === 'heavy'){
+            ctx.beginPath();
+            ctx.ellipse(0,0, w*0.5, h*0.45,0,0,Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#cc5533';
+            ctx.beginPath();
+            ctx.ellipse(-w*0.25, h*0.1, 7, 9,0,0,Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(w*0.25, h*0.1, 7, 9,0,0,Math.PI*2);
+            ctx.fill();
+        } else {
+            ctx.beginPath();
+            ctx.ellipse(0,0, w*0.48, h*0.45,0,0,Math.PI*2);
+            ctx.fill();
+        }
+        if(e.maxHp>1 && e.hp<e.maxHp){
+            ctx.fillStyle = '#111';
+            ctx.fillRect(-w*0.45, -h*0.6, w*0.9, 4);
+            ctx.fillStyle = '#5eff5e';
+            ctx.fillRect(-w*0.45, -h*0.6, w*0.9*(e.hp/e.maxHp), 4);
+        }
+        ctx.restore();
+    }
+    
+    // 音效系统 (简化但保留)
+    let audioCtx=null, soundEnabled=true;
+    function initAudio(){ if(audioCtx) return; try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+    function playTone(freq,type,dur,vol=0.09){ if(!soundEnabled || !audioCtx) return; if(audioCtx.state ==='suspended') audioCtx.resume(); let osc=audioCtx.createOscillator(), gain=audioCtx.createGain(); osc.type=type; osc.frequency.value=freq; gain.gain.setValueAtTime(vol, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+dur); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime+dur); }
+    function sfxShoot(){ playTone(1450,'sine',0.05,0.07); }
+    function sfxHit(){ playTone(680,'triangle',0.07,0.08); }
+    function sfxBossHit(){ playTone(100,'sawtooth',0.18,0.1); }
+    function sfxBossExplode(){ for(let i=0;i<5;i++) setTimeout(()=>playTone(90+i*70,'sawtooth',0.2,0.12), i*70); }
+    function sfxPowerUp(){ [600,760,920].forEach((f,i)=>setTimeout(()=>playTone(f,'sine',0.12,0.07),i*50)); }
+    function sfxShield(){ playTone(520,'sine',0.2); playTone(780,'sine',0.13); }
+    function sfxPlayerHit(){ playTone(210,'sawtooth',0.22,0.12); playTone(140,'triangle',0.24,0.1); }
+    function sfxGameOver(){ [280,210,150,90].forEach((f,i)=>setTimeout(()=>playTone(f,'triangle',0.35,0.1),i*100)); }
+    function sfxLevelUp(){ [523,659,784,1046].forEach((f,i)=>setTimeout(()=>playTone(f,'sine',0.18,0.09),i*70)); }
+    function toggleSound(){ soundEnabled=!soundEnabled; soundBtn.textContent=soundEnabled?'🔊':'🔇'; if(soundEnabled && audioCtx && audioCtx.state==='suspended') audioCtx.resume(); }
+    
+    // 射击逻辑
+    function shootSpread(){
+        for(let ang = -0.18; ang<=0.18; ang+=0.18){
+            bullets.push({ x:player.x, y:player.y-player.h/2, vx:Math.sin(ang)*8.5, vy:-9.5, w:4, h:14, isEnemy:false });
+        }
+        sfxShoot(); lastShootFrame=6;
+        for(let i=0;i<3;i++) particles.push({ x:player.x-5+Math.random()*10, y:player.y+player.h*0.3, vx:(Math.random()-0.5)*2, vy:-2, life:0.3, maxLife:0.5, color:'#ff8844', size:2 });
+    }
+    function autoShoot(){ if(gameOver||!gameStarted) return; autoShootTimer--; if(autoShootTimer<=0){ autoShootTimer=shootInterval; shootSpread(); } }
+    
+    // 清屏加强：清除所有敌方子弹+非boss敌人
+    function superClear() {
+        bullets = bullets.filter(b => !b.isEnemy);
+        enemies.forEach(e=>{ if(e.type!=='boss') e.hp=0; });
+        screenShake=8;
+        sfxPowerUp();
+        spawnFloatingText(W/2, H/2, "💥 全屏肃清 💥", "#ff6666");
+        for(let i=0;i<40;i++) particles.push({ x:W/2+(Math.random()-0.5)*150, y:H/2+(Math.random()-0.5)*100, vx:(Math.random()-0.5)*5, vy:(Math.random()-0.5)*5, life:0.8, maxLife:1.0, color:'#ff3333', size:3 });
+    }
+    
+    // 游戏基础逻辑 (保持完整)
+    function spawnEnemy(){ if(bossActive || gameOver) return; let list = ['basic','basic','fast','tough','zigzag']; if(level>=3) list.push('fast','tough'); if(level>=5) list.push('heavy','heavy'); let type = list[Math.floor(Math.random()*list.length)]; let x = 20+Math.random()*(W-40); let base = { x, y:-35, speed:1.5+level*0.25+Math.random()*1, score:10+Math.floor(level*3), shootCd:25+Math.floor(Math.random()*30) }; if(type==='basic') return enemies.push({...base, w:28,h:28,hp:1,maxHp:1,type,color:'#f6667e',glowColor:'#ff6677',score:15}); if(type==='fast') return enemies.push({...base, w:24,h:24,hp:1,maxHp:1,type,speed:3.8+level*0.3,color:'#ffaa44',glowColor:'#ff8833',score:20,shootCd:20}); if(type==='tough') return enemies.push({...base, w:36,h:36,hp:2,maxHp:2,type,speed:1.2+level*0.2,color:'#cc44ee',glowColor:'#bb55ff',score:35,shootCd:38}); if(type==='zigzag') return enemies.push({...base, w:28,h:28,hp:1,maxHp:1,type,speed:2.2+level*0.2,color:'#44ccff',glowColor:'#33aaff',zigPhase:0,zigAmp:3,score:28,shootCd:30}); if(type==='heavy') return enemies.push({...base, w:44,h:44,hp:4,maxHp:4,type,speed:0.9+level*0.15,color:'#d64545',glowColor:'#b11',score:70,shootCd:50}); }
+    function enemyShoot(e){ bullets.push({ x:e.x, y:e.y+e.h/2, vx:0, vy:3.5+level*0.2, w:4, h:11, isEnemy:true }); }
+    function spawnBoss(){ if(bossActive) return; bossActive=true; bossDefeatedForLevel=false; let boss = { x:W/2, y:40, w:70, h:70, hp:18+level*9, maxHp:18+level*9, type:'boss', speed:1.2, shootCd:38, moveDir:1, phase:0 }; enemies.push(boss); screenShake=6; sfxShield(); spawnFloatingText(W/2,100,"⚠️ 旗舰级威胁 ⚠️","#ff4444"); }
+    function collectPowerUp(pu){ if(pu.type==='shield'){ player.shieldAlpha=1; invincibleTimer=Math.max(invincibleTimer,170); sfxShield(); spawnFloatingText(pu.x,pu.y,'🛡️ 护盾','#88ff88'); } else if(pu.type==='bomb'){ superClear(); } else if(pu.type==='score'){ addScore(100); sfxPowerUp(); spawnFloatingText(pu.x,pu.y,'+100⭐','gold'); } }
+    function playerTakeDamage(){ if(invincibleTimer>0||gameOver) return; lives--; invincibleTimer=80; addScore(-40); screenShake=5; sfxPlayerHit(); spawnParticles(player.x,player.y,'#ff6644',18,5); spawnFloatingText(player.x,player.y-15,'-1 ❤️','#ff7777'); if(lives<=0){ gameOver=true; screenShake=0; sfxGameOver(); spawnParticles(player.x,player.y,'#fff',40,8,true); } updateUI(); }
+    function updateUI(){ scoreDisplay.textContent = Math.floor(safeScore(score)); comboDisplay.textContent=combo; livesDisplay.textContent=lives; levelDisplay.textContent=level; distanceDisplay.textContent=Math.floor(travelDistance); }
+    function rectCollide(a,b){ return Math.abs(a.x-b.x)<(a.w/2+b.w/2) && Math.abs(a.y-b.y)<(a.h/2+b.h/2); }
+    function spawnPowerUp(x,y){ let r=Math.random(); let type = r<0.4?'shield':(r<0.7?'bomb':'score'); powerUps.push({x,y,type,icon:type==='shield'?'🛡':(type==='bomb'?'💣':'⭐'), vy:1.6, life:420, color:type==='shield'?'#66ff66':type==='bomb'?'#ff6666':'#ffcc44'}); }
+    function spawnParticles(x,y,color,count,spread=5,big=false){ for(let i=0;i<count;i++){ let ang=Math.random()*Math.PI*2, sp=Math.random()*spread+(big?4:1.5); particles.push({ x,y, vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp, life:0.5+Math.random()*0.5, maxLife:0.9, color, size:big?4:2 }); } }
+    function spawnFloatingText(x,y,text,color='#ffaa55'){ floatingTexts.push({x,y,text,color,life:0.8,maxLife:0.8,vy:-2.5}); }
+    
+    // 主更新循环 (敌人/道具/远征)
+    let levelUpText=null;
+    function updateGame(){
+        if(!gameStarted || gameOver){
+            updateClouds();
+            return;
+        }
+        frameCount++;
+        if(screenShake>0) screenShake*=0.88;
+        if(invincibleTimer>0) invincibleTimer--;
+        if(lastShootFrame>0) lastShootFrame--;
+        if(player.shieldAlpha>0) player.shieldAlpha-=0.008;
+        autoShoot();
+        let distInc = 1.0 + combo * 0.028;
+        travelDistance += distInc;
+        if(!bossActive && !bossDefeatedForLevel && travelDistance >= distanceToBoss) spawnBoss();
+        if(enemySpawnTimer<=0 && !bossActive && !gameOver){ enemySpawnTimer = Math.max(20, enemySpawnBase - Math.floor(level*1.6)); spawnEnemy(); } else enemySpawnTimer--;
+        
+        // 敌人移动/射击
+        for(let i=0;i<enemies.length;i++){ let e=enemies[i]; e.y+=e.speed; if(e.type==='zigzag'){ e.zigPhase+=0.08; e.x+=Math.sin(e.zigPhase)*e.zigAmp; e.x=Math.min(W-e.w/2, Math.max(e.w/2, e.x)); } if(e.type==='boss'){ e.x+=e.moveDir*e.speed*1.4; if(e.x<e.w/2+15 || e.x>W-e.w/2-15) e.moveDir*=-1; if(e.y>70) e.y=70; e.shootCd--; if(e.shootCd<=0 && e.y>20){ e.shootCd = 34; for(let a=-0.22;a<=0.22;a+=0.22) bullets.push({ x:e.x, y:e.y+e.h/2, vx:Math.sin(a)*3.2, vy:3.0, w:4.5, h:11, isEnemy:true }); } } else { e.shootCd--; if(e.shootCd<=0 && !gameOver && e.y>10 && e.y<H){ enemyShoot(e); e.shootCd = 32 + (level*1.2) - (e.type==='fast'?8:0); if(e.shootCd<18) e.shootCd=18; } } }
+        // 子弹移动
+        for(let i=0;i<bullets.length;i++){ let b=bullets[i]; b.x+=b.vx; b.y+=b.vy; if(b.y<-40||b.y>H+60||b.x<-50||b.x>W+50){ bullets.splice(i,1); i--; } }
+        // 碰撞敌人
+        for(let i=enemies.length-1;i>=0;i--){ let e=enemies[i]; let dead=false; for(let j=bullets.length-1;j>=0;j--){ let b=bullets[j]; if(b.isEnemy) continue; if(Math.abs(b.x-e.x)<(e.w/2+b.w) && Math.abs(b.y-e.y)<(e.h/2+b.h)){ bullets.splice(j,1); e.hp--; spawnParticles(b.x,b.y,'#ffdd88',3,2); if(e.hp<=0){ let isBoss = e.type==='boss'; travelDistance += (isBoss? 500 : e.score*1.5); addScore(e.score); combo++; comboTimer=100; spawnParticles(e.x,e.y,e.color, isBoss?45:18, isBoss?8:4); spawnFloatingText(e.x,e.y,`+${e.score}`,'#ffcc66'); if(isBoss){ sfxBossExplode(); screenShake=8; bossActive=false; bossDefeatedForLevel=true; for(let k=0;k<3;k++) spawnPowerUp(e.x-15+k*15, e.y); level++; travelDistance=0; distanceToBoss = 1000 + level * 150; bossDefeatedForLevel=false; enemySpawnBase = Math.max(18, 52 - Math.floor(level*2.2)); levelUpText={text:`✨ 第 ${level} 关  ✨`, life:1.4, maxLife:1.4}; sfxLevelUp(); updateUI(); } else { sfxHit(); if(Math.random()<0.22) spawnPowerUp(e.x,e.y); } enemies.splice(i,1); dead=true; break; } else { sfxHit(); if(e.type==='boss') sfxBossHit(); } break; } } if(!dead && e.y<H+70 && rectCollide(player,e)){ if(e.type!=='boss'){ addScore(e.score); combo++; comboTimer=100; spawnParticles(e.x,e.y,e.color,12,4); enemies.splice(i,1); playerTakeDamage(); } else { playerTakeDamage(); e.y+=12; } } }
+        // 敌方子弹碰撞玩家
+        for(let j=bullets.length-1;j>=0;j--){ let b=bullets[j]; if(b.isEnemy && rectCollide(player,b)){ bullets.splice(j,1); playerTakeDamage(); spawnParticles(b.x,b.y,'#ffaa33',5,2); } }
+        if(comboTimer>0) comboTimer--; else combo=0;
+        for(let i=0;i<powerUps.length;i++){ let pu=powerUps[i]; pu.y+=1.6; pu.life--; if(pu.life<=0||pu.y>H+40){ powerUps.splice(i,1); i--; continue; } if(rectCollide(player,{x:pu.x,y:pu.y,w:18,h:18})){ collectPowerUp(pu); powerUps.splice(i,1); i--; } }
+        for(let i=particles.length-1;i>=0;i--){ let p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.life-=0.018; if(p.life<=0) particles.splice(i,1); }
+        for(let i=floatingTexts.length-1;i>=0;i--){ let f=floatingTexts[i]; f.y+=f.vy; f.life-=0.018; if(f.life<=0) floatingTexts.splice(i,1); }
+        if(levelUpText){ levelUpText.life-=0.012; if(levelUpText.life<=0) levelUpText=null; }
+        updateUI();
+        updateClouds();
+    }
+    
+    function renderAll(){
+        drawFullBackground();  // 阳光+自定义背景+云朵
+        powerUps.forEach(p=>{ ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,13,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#2c1e0f'; ctx.font='bold 14px sans-serif'; ctx.fillText(p.icon,p.x-5,p.y+5); });
+        drawBullets();
+        enemies.forEach(e=>{ if(e.type==='boss'){ if(bossImgReady && bossSprite) ctx.drawImage(bossSprite, e.x-e.w/2, e.y-e.h/2, e.w, e.h); else drawBossDetailed(e.x,e.y,e.w,e.h, e.hp/e.maxHp); } else drawEnemyDetailed(e); });
+        let shieldActive = (player.shieldAlpha>0 || invincibleTimer>0);
+        if(playerImgReady && playerSprite){ ctx.drawImage(playerSprite, player.x-player.w/2, player.y-player.h/2, player.w, player.h); if(shieldActive){ ctx.save(); ctx.globalAlpha = 0.45 + Math.sin(Date.now()*0.012)*0.2; ctx.beginPath(); ctx.ellipse(player.x, player.y, player.w*0.8, player.h*0.7, 0, 0, Math.PI*2); ctx.fillStyle = '#ffaa88'; ctx.fill(); ctx.restore(); } } else { drawDetailedPlayer(player.x,player.y,player.w,player.h, shieldActive); }
+        particles.forEach(p=>{ ctx.globalAlpha=p.life/p.maxLife; ctx.fillStyle=p.color; ctx.fillRect(p.x-2,p.y-2,p.size,p.size); });
+        ctx.globalAlpha=1;
+        floatingTexts.forEach(f=>{ ctx.fillStyle=f.color; ctx.font='bold 13px monospace'; ctx.fillText(f.text,f.x,f.y); });
+        if(levelUpText){ ctx.fillStyle='#ffcc55'; ctx.font='bold 26px "Segoe UI"'; ctx.shadowBlur=12; ctx.fillText(levelUpText.text,W/2-70,H/2-40); ctx.shadowBlur=0; }
+        if(gameOver){ ctx.fillStyle='rgba(0,0,0,0.75)'; ctx.fillRect(0,H/2-55,W,110); ctx.fillStyle='#ff6633'; ctx.font='bold 32px sans-serif'; ctx.fillText('GAME OVER',W/2-100,H/2); ctx.fillStyle='#ffcc88'; ctx.font='14px'; ctx.fillText('点击画面 重新出征',W/2-85,H/2+35); }
+    }
+    
+    function loop(){ updateGame(); if(screenShake>0 && !gameOver){ let sx=(Math.random()-0.5)*screenShake*8, sy=(Math.random()-0.5)*screenShake*5; ctx.save(); ctx.translate(sx,sy); renderAll(); ctx.restore(); } else renderAll(); requestAnimationFrame(loop); }
+    
+    function startGame(){
+        if(gameStarted) return;
+        gameStarted=true; gameOver=false; score=0; level=1; lives=3; combo=0; travelDistance=0; bossActive=false; bossDefeatedForLevel=false; invincibleTimer=40; screenShake=0;
+        distanceToBoss = 1200; enemySpawnBase=46; enemies=[]; bullets=[]; particles=[]; powerUps=[]; floatingTexts=[];
+        player.x=W/2; player.y=H-70; updateUI(); initAudio(); initClouds();
+        overlayStart.classList.remove('active');
+        playTone(800,'sine',0.2);
+    }
+    function resetGame(){ gameStarted = false; gameOver = false; screenShake = 0; overlayStart.classList.add('active'); }
+    
+    // 事件
+    canvas.addEventListener('click', (e) => { e.stopPropagation(); initAudio(); if(!gameStarted) startGame(); else if(gameOver) resetGame(); });
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); initAudio(); if(!gameStarted) startGame(); else if(gameOver) resetGame(); });
+    btnStart.onclick = (e)=>{ e.stopPropagation(); startGame(); }; btnHelp.onclick = ()=> helpModal.classList.add('active'); closeHelpBtn.onclick = ()=> helpModal.classList.remove('active'); soundBtn.onclick = toggleSound;
+    canvas.addEventListener('mousemove',e=>{ if(!gameStarted||gameOver)return; let rect=canvas.getBoundingClientRect(); let x=(e.clientX-rect.left)*(W/rect.width); let y=(e.clientY-rect.top)*(H/rect.height); player.x=Math.min(W-player.w/2,Math.max(player.w/2,x)); player.y=Math.min(H-player.h/2,Math.max(player.h/2,y)); });
+    canvas.addEventListener('touchmove',e=>{ e.preventDefault(); if(!gameStarted||gameOver)return; let rect=canvas.getBoundingClientRect(); let t=e.touches[0]; let x=(t.clientX-rect.left)*(W/rect.width); let y=(t.clientY-rect.top)*(H/rect.height); player.x=Math.min(W-player.w/2,Math.max(player.w/2,x)); player.y=Math.min(H-player.h/2,Math.max(player.h/2,y)); },{passive:false});
+    document.addEventListener('keydown',e=>{ if(e.key===' '||e.key==='Space'){ e.preventDefault(); if(!gameStarted) startGame(); else if(!gameOver) shootSpread(); } if(e.key==='r'||e.key==='R'){ resetGame(); } if(!gameStarted||gameOver) return; let spd=player.speed; if(e.key==='ArrowLeft'||e.key==='a') player.x = Math.max(player.w/2, player.x-spd); if(e.key==='ArrowRight'||e.key==='d') player.x = Math.min(W-player.w/2, player.x+spd); if(e.key==='ArrowUp'||e.key==='w') player.y = Math.max(player.h/2, player.y-spd); if(e.key==='ArrowDown'||e.key==='s') player.y = Math.min(H-player.h/2, player.y+spd); });
+    
+    initClouds(); resetGame(); updateUI(); loop();
+})();
+</script>
+</body>
+</html>
